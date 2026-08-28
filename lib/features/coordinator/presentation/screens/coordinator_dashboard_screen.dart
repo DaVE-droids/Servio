@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/constants/app_routes.dart';
 import '../../../authentication/presentation/providers/authentication_providers.dart';
 import '../widgets/needs_lecturer_tab.dart';
 import '../widgets/pending_review_tab.dart';
@@ -21,6 +23,11 @@ class CoordinatorDashboardScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('Coordinator Dashboard'),
           actions: [
+            IconButton(
+              onPressed: () => context.push(AppRoutes.profile),
+              icon: const Icon(Icons.person_outline),
+              tooltip: 'Profile',
+            ),
             TextButton(
               onPressed: authState.isLoading
                   ? null

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,6 +15,8 @@ import '../../features/dashboard/presentation/screens/student_coming_soon_screen
 import '../../features/dashboard/presentation/screens/student_dashboard_screen.dart';
 import '../../features/dashboard/presentation/widgets/student_app_shell.dart';
 import '../../features/internship/presentation/screens/student_internship_screen.dart';
+import '../../features/lecturer/presentation/screens/lecturer_assigned_students_screen.dart';
+import '../../features/lecturer/presentation/screens/lecturer_dashboard_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../constants/app_routes.dart';
 import 'auth_redirects.dart';
@@ -64,19 +66,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.studentDashboard,
-        builder: (context, state) => _studentShell(
-          path: state.uri.path,
-          title: 'Dashboard',
-          child: const StudentDashboardScreen(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: _studentShell(
+            path: state.uri.path,
+            title: 'Dashboard',
+            child: const StudentDashboardScreen(),
+          ),
         ),
       ),
       GoRoute(
         path: AppRoutes.lecturerDashboard,
-        builder: (context, state) => const AuthenticatedPlaceholderScreen(
-          title: 'Lecturer Dashboard',
-          description:
-              'Lecturer supervision summary widgets will be added later.',
-        ),
+        builder: (context, state) {
+          if (session?.role != UserRole.lecturer) {
+            return const AuthenticatedPlaceholderScreen(
+              title: 'Lecturer Dashboard',
+              description:
+                  'Lecturer supervision summary widgets will be added later.',
+            );
+          }
+          return const LecturerDashboardScreen();
+        },
       ),
       GoRoute(
         path: AppRoutes.coordinatorDashboard,
@@ -109,66 +118,81 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.attendance,
-        builder: (context, state) => _studentShell(
-          path: state.uri.path,
-          title: 'Attendance',
-          child: const StudentComingSoonScreen(
-            title: 'Attendance Coming Soon',
-            message:
-                'Daily check-in, checkout, and attendance history will be available in the attendance module.',
+        pageBuilder: (context, state) => NoTransitionPage(
+          child: _studentShell(
+            path: state.uri.path,
+            title: 'Attendance',
+            child: const StudentComingSoonScreen(
+              title: 'Attendance Coming Soon',
+              message:
+                  'Daily check-in, checkout, and attendance history will be available in the attendance module.',
+            ),
           ),
         ),
       ),
       GoRoute(
         path: AppRoutes.logbook,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           if (session?.role != UserRole.student) {
-            return const AuthenticatedPlaceholderScreen(
-              title: 'Logbook',
-              description: 'Digital logbook screens will live here.',
+            return NoTransitionPage(
+              child: const AuthenticatedPlaceholderScreen(
+                title: 'Logbook',
+                description: 'Digital logbook screens will live here.',
+              ),
             );
           }
-          return _studentShell(
-            path: state.uri.path,
-            title: 'Logbook',
-            child: const StudentComingSoonScreen(
-              title: 'Logbook Coming Soon',
-              message:
-                  'Daily log entries, review status, and lecturer comments will be available in the logbook module.',
+          return NoTransitionPage(
+            child: _studentShell(
+              path: state.uri.path,
+              title: 'Logbook',
+              child: const StudentComingSoonScreen(
+                title: 'Logbook Coming Soon',
+                message:
+                    'Daily log entries, review status, and lecturer comments will be available in the logbook module.',
+              ),
             ),
           );
         },
       ),
       GoRoute(
         path: AppRoutes.notifications,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           if (session?.role != UserRole.student) {
-            return const AuthenticatedPlaceholderScreen(
-              title: 'Notifications',
-              description: 'Notification list and read states will live here.',
+            return NoTransitionPage(
+              child: const AuthenticatedPlaceholderScreen(
+                title: 'Notifications',
+                description:
+                    'Notification list and read states will live here.',
+              ),
             );
           }
-          return _studentShell(
-            path: state.uri.path,
-            title: 'Notifications',
-            child: const StudentComingSoonScreen(
-              title: 'Notifications Coming Soon',
-              message:
-                  'Placement alerts, attendance reminders, and logbook updates will appear here.',
+          return NoTransitionPage(
+            child: _studentShell(
+              path: state.uri.path,
+              title: 'Notifications',
+              child: const StudentComingSoonScreen(
+                title: 'Notifications Coming Soon',
+                message:
+                    'Placement alerts, attendance reminders, and logbook updates will appear here.',
+              ),
             ),
           );
         },
       ),
       GoRoute(
         path: AppRoutes.profile,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           if (session?.role != UserRole.student) {
-            return const ProfileScreen();
+            // Reached via push() from a non-student dashboard, not a tab
+            // switch, so this keeps the default "drilling in" transition.
+            return MaterialPage(child: const ProfileScreen());
           }
-          return _studentShell(
-            path: state.uri.path,
-            title: 'Profile',
-            child: const ProfileScreen(showScaffold: false),
+          return NoTransitionPage(
+            child: _studentShell(
+              path: state.uri.path,
+              title: 'Profile',
+              child: const ProfileScreen(showScaffold: false),
+            ),
           );
         },
       ),
@@ -177,10 +201,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         'Settings',
         'Application settings will live here.',
       ),
-      _placeholder(
-        AppRoutes.assignedStudents,
-        'Assigned Students',
-        'Lecturer assigned student list will live here.',
+      GoRoute(
+        path: AppRoutes.assignedStudents,
+        builder: (context, state) {
+          if (session?.role != UserRole.lecturer) {
+            return const AuthenticatedPlaceholderScreen(
+              title: 'Assigned Students',
+              description: 'Lecturer assigned student list will live here.',
+            );
+          }
+          return const LecturerAssignedStudentsScreen();
+        },
       ),
       _placeholder(
         AppRoutes.visitReports,
