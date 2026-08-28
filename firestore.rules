@@ -325,6 +325,117 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
+    function logbookEntryFields() {
+      return [
+        'entryId',
+        'internshipId',
+        'studentId',
+        'studentName',
+        'studentMatricNumber',
+        'lecturerId',
+        'lecturerName',
+        'companyName',
+        'state',
+        'date',
+        'activities',
+        'skillsLearned',
+        'challenges',
+        'solutionsApplied',
+        'hoursWorked',
+        'attachmentUrls',
+        'status',
+        'lecturerComments',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function hasValidLogbookContent() {
+      return request.resource.data.activities is string
+        && request.resource.data.skillsLearned is string
+        && request.resource.data.challenges is string
+        && request.resource.data.solutionsApplied is string
+        && (
+          request.resource.data.hoursWorked is int
+          || request.resource.data.hoursWorked is float
+        )
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    // The first submission for a day is a create() (no prior document).
+    // A resubmission after changes were requested reuses the same
+    // deterministic doc ID, so Firestore treats it as an update() even
+    // though the client calls set() either way -- hence a separate
+    // student-edit rule below with the same content validation.
+    function isValidLogbookCreate() {
+      return isStudent()
+        && request.resource.data.keys().hasOnly(logbookEntryFields())
+        && request.resource.data.keys().hasAll([
+          'entryId',
+          'internshipId',
+          'studentId',
+          'studentName',
+          'studentMatricNumber',
+          'lecturerId',
+          'lecturerName',
+          'companyName',
+          'state',
+          'date',
+          'activities',
+          'skillsLearned',
+          'challenges',
+          'solutionsApplied',
+          'hoursWorked',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.studentId == request.auth.uid
+        && isInternshipActiveForStudent(
+          request.resource.data.internshipId,
+          request.auth.uid
+        )
+        && request.resource.data.status == 'pending'
+        && request.resource.data.date is timestamp
+        && request.resource.data.createdAt is timestamp
+        && hasValidLogbookContent();
+    }
+
+    function isValidLogbookStudentEdit() {
+      return isStudent()
+        && resource.data.studentId == request.auth.uid
+        && resource.data.status != 'approved'
+        && request.resource.data.keys().hasOnly(logbookEntryFields())
+        && request.resource.data.entryId == resource.data.entryId
+        && request.resource.data.internshipId == resource.data.internshipId
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.lecturerId == resource.data.lecturerId
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status == 'pending'
+        && hasValidLogbookContent();
+    }
+
+    function isValidLogbookLecturerReview() {
+      return isLecturerUser()
+        && resource.data.lecturerId == request.auth.uid
+        && resource.data.status == 'pending'
+        && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'updatedAt'])
+            && request.resource.data.status == 'approved'
+          )
+          || (
+            request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'lecturerComments', 'updatedAt'])
+            && request.resource.data.status == 'changes_requested'
+            && request.resource.data.lecturerComments is string
+          )
+        )
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     function isValidCoordinatorActivation() {
       return request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'activatedAt', 'updatedAt'])
@@ -381,6 +492,21 @@ service cloud.firestore {
       || isCoordinator();
     allow create: if isValidAttendanceCreate();
     allow update: if isValidAttendanceCheckOut();
+    allow delete: if false;
+  }
+
+  match /logbook_entries/{entryId} {
+    // Same get()/list() split as attendance, same reasoning.
+    allow get: if (isSignedIn()
+        && !exists(/databases/$(database)/documents/logbook_entries/$(entryId)))
+      || (isStudent() && resource.data.studentId == request.auth.uid)
+      || (isLecturerUser() && resource.data.lecturerId == request.auth.uid)
+      || isCoordinator();
+    allow list: if (isStudent() && resource.data.studentId == request.auth.uid)
+      || (isLecturerUser() && resource.data.lecturerId == request.auth.uid)
+      || isCoordinator();
+    allow create: if isValidLogbookCreate();
+    allow update: if isValidLogbookStudentEdit() || isValidLogbookLecturerReview();
     allow delete: if false;
   }
 

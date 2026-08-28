@@ -19,6 +19,8 @@ import '../../features/internship/presentation/screens/student_internship_screen
 import '../../features/lecturer/presentation/screens/lecturer_assigned_students_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_attendance_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_dashboard_screen.dart';
+import '../../features/lecturer/presentation/screens/lecturer_logbook_review_screen.dart';
+import '../../features/logbook/presentation/screens/student_logbook_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../constants/app_routes.dart';
 import 'auth_redirects.dart';
@@ -146,6 +148,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.logbook,
         pageBuilder: (context, state) {
+          if (session?.role == UserRole.lecturer) {
+            // Reached via push() from the lecturer dashboard, not a tab
+            // switch, so this keeps the default "drilling in" transition.
+            return MaterialPage(child: const LecturerLogbookReviewScreen());
+          }
           if (session?.role != UserRole.student) {
             return NoTransitionPage(
               child: const AuthenticatedPlaceholderScreen(
@@ -158,11 +165,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             child: _studentShell(
               path: state.uri.path,
               title: 'Logbook',
-              child: const StudentComingSoonScreen(
-                title: 'Logbook Coming Soon',
-                message:
-                    'Daily log entries, review status, and lecturer comments will be available in the logbook module.',
-              ),
+              child: const StudentLogbookScreen(),
             ),
           );
         },
