@@ -204,6 +204,12 @@ service cloud.firestore {
         && signedInUserRole() == 'coordinator';
     }
 
+    function isLecturerUser() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && signedInUserRole() == 'lecturer';
+    }
+
     function isValidCoordinatorApproval() {
       return request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['status', 'coordinatorId', 'approvedAt', 'updatedAt'])
@@ -254,6 +260,7 @@ service cloud.firestore {
 
   match /internships/{internshipId} {
     allow get, list: if (isStudent() && resource.data.studentId == request.auth.uid)
+      || (isLecturerUser() && resource.data.lecturerId == request.auth.uid)
       || isCoordinator();
     allow create: if isValidStudentInternshipCreate(internshipId);
     allow update: if isCoordinator()

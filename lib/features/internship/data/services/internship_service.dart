@@ -88,6 +88,16 @@ class InternshipService {
         .get();
   }
 
+  /// Returns internships currently assigned to a lecturer.
+  Future<QuerySnapshot<Map<String, dynamic>>> getAssignedInternships(
+    String lecturerId,
+  ) {
+    return _firestore
+        .collection('internships')
+        .where('lecturerId', isEqualTo: lecturerId)
+        .get();
+  }
+
   /// Assigns a lecturer to an approved internship.
   Future<void> assignLecturer({
     required String internshipId,

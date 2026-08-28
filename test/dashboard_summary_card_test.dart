@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:servio/app/theme/app_colors.dart';
-import 'package:servio/features/dashboard/presentation/widgets/student_dashboard_summary_card.dart';
+import 'package:servio/core/widgets/dashboard_summary_card.dart';
 
 void main() {
   testWidgets('renders optional dashboard card action', (tester) async {
@@ -10,7 +10,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StudentDashboardSummaryCard(
+          body: DashboardSummaryCard(
             title: 'Current Internship',
             value: 'Not submitted yet',
             description: 'Submit your placement details.',

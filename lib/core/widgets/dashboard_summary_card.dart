@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/widgets/app_button.dart';
-import '../../../../core/widgets/app_card.dart';
+import '../../app/theme/app_spacing.dart';
+import 'app_button.dart';
+import 'app_card.dart';
 
-/// Summary card used on the student dashboard.
-class StudentDashboardSummaryCard extends StatelessWidget {
-  /// Creates a student dashboard summary card.
-  const StudentDashboardSummaryCard({
+/// Summary card used on role dashboards (student, lecturer, ...).
+class DashboardSummaryCard extends StatelessWidget {
+  /// Creates a dashboard summary card.
+  const DashboardSummaryCard({
     required this.title,
     required this.value,
     required this.description,

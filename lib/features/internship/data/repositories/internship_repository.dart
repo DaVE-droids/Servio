@@ -205,6 +205,25 @@ class InternshipRepository {
     }
   }
 
+  /// Retrieves internships currently assigned to a lecturer, sorted by
+  /// company name.
+  Future<Result<List<InternshipModel>>> getAssignedInternships(
+    String lecturerId,
+  ) async {
+    try {
+      final snapshot = await _service.getAssignedInternships(lecturerId);
+      final internships = snapshot.docs
+          .map((doc) => InternshipModel.fromJson(doc.data()))
+          .toList()
+        ..sort((a, b) => a.companyName.compareTo(b.companyName));
+      return Success(internships);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
   /// Assigns a lecturer to an approved internship.
   Future<Result<void>> assignLecturer({
     required String internshipId,

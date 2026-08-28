@@ -11,11 +11,11 @@ import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
+import '../../../../core/widgets/dashboard_summary_card.dart';
 import '../../../internship/presentation/controllers/internship_state.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../../profile/data/models/user_model.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
-import '../widgets/student_dashboard_summary_card.dart';
 
 /// Student dashboard showing the current user's placement overview.
 class StudentDashboardScreen extends ConsumerWidget {
@@ -136,7 +136,7 @@ class _DashboardGrid extends StatelessWidget {
             : 1;
         final cards = [
           _internshipCard(context),
-          const StudentDashboardSummaryCard(
+          const DashboardSummaryCard(
             title: "Today's Attendance",
             value: 'Not recorded',
             description:
@@ -144,7 +144,7 @@ class _DashboardGrid extends StatelessWidget {
             icon: Icons.fact_check_outlined,
             color: AppColors.information,
           ),
-          const StudentDashboardSummaryCard(
+          const DashboardSummaryCard(
             title: 'Pending Logbook',
             value: 'Coming soon',
             description:
@@ -171,14 +171,14 @@ class _DashboardGrid extends StatelessWidget {
 
   Widget _internshipCard(BuildContext context) {
     return internshipValue.when(
-      loading: () => const StudentDashboardSummaryCard(
+      loading: () => const DashboardSummaryCard(
         title: 'Current Internship',
         value: 'Loading...',
         description: 'Checking your submitted placement status.',
         icon: Icons.business_center_outlined,
         color: AppColors.information,
       ),
-      error: (error, stackTrace) => const StudentDashboardSummaryCard(
+      error: (error, stackTrace) => const DashboardSummaryCard(
         title: 'Current Internship',
         value: 'Unavailable',
         description: 'Unable to load your placement status right now.',
@@ -188,7 +188,7 @@ class _DashboardGrid extends StatelessWidget {
       data: (state) {
         final internship = state.currentInternship;
         if (internship == null) {
-          return StudentDashboardSummaryCard(
+          return DashboardSummaryCard(
             title: 'Current Internship',
             value: 'Not submitted yet',
             description:
@@ -196,17 +196,17 @@ class _DashboardGrid extends StatelessWidget {
             icon: Icons.business_center_outlined,
             color: AppColors.warning,
             actionLabel: 'Submit',
-            onActionPressed: () => context.go(AppRoutes.internship),
+            onActionPressed: () => context.push(AppRoutes.internship),
           );
         }
-        return StudentDashboardSummaryCard(
+        return DashboardSummaryCard(
           title: 'Current Internship',
           value: internship.status.label,
           description: '${internship.companyName} • ${internship.state}',
           icon: Icons.business_center_outlined,
           color: _statusColor(internship.status),
           actionLabel: 'View',
-          onActionPressed: () => context.go(AppRoutes.internship),
+          onActionPressed: () => context.push(AppRoutes.internship),
         );
       },
     );
