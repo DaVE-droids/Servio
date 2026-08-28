@@ -38,24 +38,6 @@ void main() {
     });
   });
 
-  group('InternshipValidator coordinates', () {
-    test('validates latitude range', () {
-      expect(
-        InternshipValidator.latitude('91'),
-        'Latitude must be between -90 and 90.',
-      );
-      expect(InternshipValidator.latitude('6.5244'), isNull);
-    });
-
-    test('validates longitude range', () {
-      expect(
-        InternshipValidator.longitude('181'),
-        'Longitude must be between -180 and 180.',
-      );
-      expect(InternshipValidator.longitude('3.3792'), isNull);
-    });
-  });
-
   group('InternshipValidator.dates', () {
     test('requires start and end dates', () {
       expect(

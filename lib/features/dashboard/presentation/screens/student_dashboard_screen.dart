@@ -119,6 +119,12 @@ class _DashboardGrid extends StatelessWidget {
 
   final AsyncValue<InternshipState> internshipValue;
 
+  /// Fixed card height. Chosen to comfortably fit an icon/title row, a
+  /// value line, a two-line description, and an optional action button —
+  /// a childAspectRatio-based height previously overflowed on narrow
+  /// screens once a card's button was showing.
+  static const _cardHeight = 210.0;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -128,32 +134,36 @@ class _DashboardGrid extends StatelessWidget {
             : constraints.maxWidth >= 600
             ? 2
             : 1;
-        return GridView.count(
-          crossAxisCount: crossAxisCount,
+        final cards = [
+          _internshipCard(context),
+          const StudentDashboardSummaryCard(
+            title: "Today's Attendance",
+            value: 'Not recorded',
+            description:
+                'Check-in and checkout status will appear here after attendance is implemented.',
+            icon: Icons.fact_check_outlined,
+            color: AppColors.information,
+          ),
+          const StudentDashboardSummaryCard(
+            title: 'Pending Logbook',
+            value: 'Coming soon',
+            description:
+                'Daily logbook reminders will appear here in the logbook phase.',
+            icon: Icons.menu_book_outlined,
+            color: AppColors.secondary,
+          ),
+        ];
+        return GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.sm,
+            mainAxisExtent: _cardHeight,
+          ),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: AppSpacing.sm,
-          mainAxisSpacing: AppSpacing.sm,
-          childAspectRatio: crossAxisCount == 1 ? 3.1 : 2.2,
-          children: [
-            _internshipCard(context),
-            const StudentDashboardSummaryCard(
-              title: "Today's Attendance",
-              value: 'Not recorded',
-              description:
-                  'Check-in and checkout status will appear here after attendance is implemented.',
-              icon: Icons.fact_check_outlined,
-              color: AppColors.information,
-            ),
-            const StudentDashboardSummaryCard(
-              title: 'Pending Logbook',
-              value: 'Coming soon',
-              description:
-                  'Daily logbook reminders will appear here in the logbook phase.',
-              icon: Icons.menu_book_outlined,
-              color: AppColors.secondary,
-            ),
-          ],
+          itemCount: cards.length,
+          itemBuilder: (context, index) => cards[index],
         );
       },
     );

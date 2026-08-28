@@ -21,30 +21,6 @@ abstract final class InternshipValidator {
     return null;
   }
 
-  /// Validates latitude text.
-  static String? latitude(String value) {
-    final parsed = double.tryParse(value.trim());
-    if (parsed == null) {
-      return 'Latitude is required.';
-    }
-    if (parsed < -90 || parsed > 90) {
-      return 'Latitude must be between -90 and 90.';
-    }
-    return null;
-  }
-
-  /// Validates longitude text.
-  static String? longitude(String value) {
-    final parsed = double.tryParse(value.trim());
-    if (parsed == null) {
-      return 'Longitude is required.';
-    }
-    if (parsed < -180 || parsed > 180) {
-      return 'Longitude must be between -180 and 180.';
-    }
-    return null;
-  }
-
   /// Validates internship dates.
   static String? dates({
     required DateTime? startDate,

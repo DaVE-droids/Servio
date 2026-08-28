@@ -60,11 +60,11 @@ class StudentDashboardSummaryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(value, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.xxs),
-          Expanded(
-            child: Text(
-              description,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+          Text(
+            description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           if (actionLabel != null && onActionPressed != null) ...[
             const SizedBox(height: AppSpacing.xs),

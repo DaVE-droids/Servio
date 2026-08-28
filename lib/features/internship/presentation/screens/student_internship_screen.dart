@@ -27,10 +27,11 @@ class StudentInternshipScreen extends ConsumerStatefulWidget {
 
 class _StudentInternshipScreenState
     extends ConsumerState<StudentInternshipScreen> {
+  static const _placeholderCoordinate = 0.0;
+
+
   final _companyNameController = TextEditingController();
   final _companyAddressController = TextEditingController();
-  final _latitudeController = TextEditingController();
-  final _longitudeController = TextEditingController();
   final _supervisorNameController = TextEditingController();
   final _supervisorPhoneController = TextEditingController();
   final _stateController = TextEditingController();
@@ -43,8 +44,6 @@ class _StudentInternshipScreenState
   void dispose() {
     _companyNameController.dispose();
     _companyAddressController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
     _supervisorNameController.dispose();
     _supervisorPhoneController.dispose();
     _stateController.dispose();
@@ -141,36 +140,6 @@ class _StudentInternshipScreenState
                 enabled: !isSubmitting,
                 errorText: _errors['state'],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppTextField(
-                      label: 'Latitude',
-                      controller: _latitudeController,
-                      enabled: !isSubmitting,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      errorText: _errors['latitude'],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: AppTextField(
-                      label: 'Longitude',
-                      controller: _longitudeController,
-                      enabled: !isSubmitting,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      errorText: _errors['longitude'],
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -236,11 +205,6 @@ class _StudentInternshipScreenState
               ),
               _ReviewRow(label: 'State', value: _stateController.text),
               _ReviewRow(
-                label: 'Coordinates',
-                value:
-                    '${_latitudeController.text.trim()}, ${_longitudeController.text.trim()}',
-              ),
-              _ReviewRow(
                 label: 'Supervisor',
                 value: _supervisorNameController.text,
               ),
@@ -294,8 +258,11 @@ class _StudentInternshipScreenState
           InternshipSubmissionRequest(
             companyName: _companyNameController.text,
             companyAddress: _companyAddressController.text,
-            companyLatitude: double.parse(_latitudeController.text.trim()),
-            companyLongitude: double.parse(_longitudeController.text.trim()),
+            // Coordinates aren't captured yet — there's no Maps/geocoding
+            // picker built (see docs/Servio_Roadmap_v1.0.md). Placeholder
+            // until company location can be derived automatically.
+            companyLatitude: _placeholderCoordinate,
+            companyLongitude: _placeholderCoordinate,
             companySupervisorName: _supervisorNameController.text,
             companySupervisorPhone: _supervisorPhoneController.text,
             state: _stateController.text,
@@ -319,8 +286,6 @@ class _StudentInternshipScreenState
         'Company address',
       ),
       'state': InternshipValidator.requiredText(_stateController.text, 'State'),
-      'latitude': InternshipValidator.latitude(_latitudeController.text),
-      'longitude': InternshipValidator.longitude(_longitudeController.text),
       'supervisorName': InternshipValidator.requiredText(
         _supervisorNameController.text,
         'Company supervisor name',
