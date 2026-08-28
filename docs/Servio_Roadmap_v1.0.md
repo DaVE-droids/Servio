@@ -44,6 +44,16 @@ Build out `lib/features/logbook/`. One entry per working day (business rule, enf
 ### Phase 5 — Supervision
 Build out `lib/features/supervision/`. Depends on Phase 2 (lecturer role) and Phase 1 (assignment). Visit report form (visit date/time, presence flags, observation, recommendations, 1–5 rating, optional photos) per DDS §5, `createReport()` immutable after submission. Wire `/lecturer/visit-reports`.
 
+**Hard prerequisite for this phase:** FR-SUP-003 requires "Navigate" to open the device's maps app using the company's *real* saved coordinates — meaningless with placeholder `(0.0, 0.0)` values. See "Known gap — company location capture" below; that needs to be resolved before or as part of this phase, not after.
+
+### Known gap — company location capture
+The PRD (§10, §17 Placement Module) and SAD (ADR-007) both call for company location to come from Google Maps — an address/coordinate picker, or geocoding a typed address — not manual coordinate entry. The original internship submission screen (built before this roadmap existed) shipped with two raw Latitude/Longitude text fields instead, which was unusable in practice (a coordinator/student has no reason to know a company's raw decimal coordinates) and got removed during Phase 1 testing. `StudentInternshipScreen` now submits a placeholder `(0.0, 0.0)` for `companyLatitude`/`companyLongitude` so the rest of the submission flow works, with a code comment pointing back here.
+
+This needs a real fix before Phase 5 (Supervision) makes its "Navigate to company" feature meaningful, and ideally before real placement data accumulates (retrofitting coordinates onto already-submitted placements is more work than getting it right at submission time). Two viable approaches, in increasing order of effort:
+- **Geocode the typed address** server-side or client-side using the Google Geocoding API (needs a Maps API key/billing — check Spark-plan quota implications) at submission time, no picker UI needed.
+- **Full Maps picker** — `google_maps_flutter` + Places Autocomplete, per ADR-007's original intent, letting the student drop a pin or search for the company. More build effort, better data quality.
+Either way, this needs a Google Maps Platform API key provisioned first (not yet set up anywhere in this project).
+
 ### Phase 6 — Notifications (in-app + push)
 Build out `lib/features/notifications/`, replacing the stub. This is cross-cutting — every write path from Phases 0–5 above should already be calling into it once it exists (internship approval, lecturer assignment, logbook review, etc., per ARS §19 application-service pattern). Implement `NotificationService` (currently empty in `lib/core/services/`) against `firebase_messaging`, and the Firestore-backed in-app list. Retrofit notification-triggering into the repositories built in earlier phases as part of their batched writes (ARS §9's "Approve Internship → update + notify + activity + audit, single batch" pattern) — this is intentionally sequenced last so it isn't rebuilt repeatedly as each business action is added.
 
