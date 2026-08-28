@@ -78,4 +78,27 @@ class InternshipService {
       'updatedAt': now,
     });
   }
+
+  /// Returns approved internships that do not yet have a lecturer assigned.
+  Future<QuerySnapshot<Map<String, dynamic>>> getApprovedInternships() {
+    return _firestore
+        .collection('internships')
+        .where('status', isEqualTo: 'approved')
+        .orderBy('approvedAt', descending: false)
+        .get();
+  }
+
+  /// Assigns a lecturer to an approved internship.
+  Future<void> assignLecturer({
+    required String internshipId,
+    required String lecturerId,
+  }) {
+    final now = Timestamp.fromDate(DateTime.now().toUtc());
+    return _firestore.collection('internships').doc(internshipId).update({
+      'status': 'assigned',
+      'lecturerId': lecturerId,
+      'assignedAt': now,
+      'updatedAt': now,
+    });
+  }
 }

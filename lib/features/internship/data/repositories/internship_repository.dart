@@ -189,4 +189,37 @@ class InternshipRepository {
       return Failure(_unknownFailure(error));
     }
   }
+
+  /// Retrieves approved internships awaiting a lecturer assignment.
+  Future<Result<List<InternshipModel>>> getApprovedInternships() async {
+    try {
+      final snapshot = await _service.getApprovedInternships();
+      final internships = snapshot.docs
+          .map((doc) => InternshipModel.fromJson(doc.data()))
+          .toList();
+      return Success(internships);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  /// Assigns a lecturer to an approved internship.
+  Future<Result<void>> assignLecturer({
+    required String internshipId,
+    required String lecturerId,
+  }) async {
+    try {
+      await _service.assignLecturer(
+        internshipId: internshipId,
+        lecturerId: lecturerId,
+      );
+      return const Success(null);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
 }

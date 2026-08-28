@@ -224,9 +224,25 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
+    function isLecturer(lecturerId) {
+      return exists(/databases/$(database)/documents/users/$(lecturerId))
+        && get(/databases/$(database)/documents/users/$(lecturerId)).data.role
+          == 'lecturer';
+    }
+
+    function isValidCoordinatorAssignment() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'lecturerId', 'assignedAt', 'updatedAt'])
+        && resource.data.status == 'approved'
+        && request.resource.data.status == 'assigned'
+        && isLecturer(request.resource.data.lecturerId)
+        && request.resource.data.assignedAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get: if isOwner(userId) || isCoordinator();
+      allow list: if isCoordinator();
       allow create: if isValidStudentProfileCreate(userId);
       allow update: if isOwner(userId)
         && (
@@ -241,7 +257,11 @@ service cloud.firestore {
       || isCoordinator();
     allow create: if isValidStudentInternshipCreate(internshipId);
     allow update: if isCoordinator()
-      && (isValidCoordinatorApproval() || isValidCoordinatorRejection());
+      && (
+        isValidCoordinatorApproval()
+        || isValidCoordinatorRejection()
+        || isValidCoordinatorAssignment()
+      );
     allow delete: if false;
   }
 

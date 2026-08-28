@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/firebase_providers.dart';
+import '../../../../core/result/result.dart';
+import '../../data/models/user_model.dart';
 import '../../data/repositories/profile_repository.dart';
 import '../../data/services/profile_service.dart';
 import '../../domain/use_cases/get_current_user_use_case.dart';
@@ -46,3 +48,13 @@ final profileControllerProvider =
     AsyncNotifierProvider<ProfileController, ProfileState>(
       ProfileController.new,
     );
+
+/// Provides the lecturer roster for coordinator assignment pickers.
+final lecturersProvider = FutureProvider<List<UserModel>>((ref) async {
+  final repository = ref.watch(profileRepositoryProvider);
+  final result = await repository.getLecturers();
+  return switch (result) {
+    Success(:final data) => data,
+    Failure(:final error) => throw error,
+  };
+});

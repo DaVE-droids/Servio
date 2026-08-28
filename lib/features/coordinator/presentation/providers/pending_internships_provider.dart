@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
+import 'approved_internships_provider.dart';
 
 class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> {
   @override
@@ -25,6 +26,10 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
 
     if (result is Success<void>) {
       ref.invalidateSelf(); // triggers build() to run again, refreshing the list
+      // Approving moves the placement into the "needs lecturer" bucket, so
+      // that list — a separate provider, fetched independently — needs to
+      // pick it up too, not just this one.
+      ref.invalidate(approvedInternshipsProvider);
     }
     return result;
   }

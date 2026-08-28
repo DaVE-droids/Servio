@@ -21,6 +21,14 @@ class ProfileService {
     return _firestore.collection('users').doc(uid).update(data);
   }
 
+  /// Returns all users with the lecturer role.
+  Future<QuerySnapshot<Map<String, dynamic>>> getLecturers() {
+    return _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'lecturer')
+        .get();
+  }
+
   /// Uploads profile photo bytes and returns a download URL.
   Future<String> uploadProfilePhoto({
     required String uid,

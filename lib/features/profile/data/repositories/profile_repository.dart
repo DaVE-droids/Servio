@@ -174,6 +174,27 @@ class ProfileRepository {
     }
   }
 
+  /// Returns all lecturers, sorted by name, for coordinator assignment.
+  Future<Result<List<UserModel>>> getLecturers() async {
+    try {
+      final snapshot = await _profileService.getLecturers();
+      final lecturers = snapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .toList()
+        ..sort((a, b) {
+          final lastNameComparison = a.lastName.compareTo(b.lastName);
+          return lastNameComparison != 0
+              ? lastNameComparison
+              : a.firstName.compareTo(b.firstName);
+        });
+      return Success(lecturers);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
   AppFailure _mapAuthException(FirebaseAuthException error) {
     return AppFailure(
       message: 'Your session could not be verified. Please sign in again.',

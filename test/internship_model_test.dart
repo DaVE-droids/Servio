@@ -96,4 +96,39 @@ void main() {
     expect(roundTripped.status, InternshipStatus.rejected);
     expect(roundTripped.rejectedAt, DateTime.utc(2026, 8, 1));
   });
+
+  test('round-trips an assigned internship with lecturerId and assignedAt', () {
+    final internship = InternshipModel(
+      internshipId: 'int-1',
+      studentId: 'student-1',
+      coordinatorId: 'coordinator-1',
+      lecturerId: 'lecturer-1',
+      status: InternshipStatus.assigned,
+      companyName: 'MTN Nigeria',
+      companyAddress: 'Victoria Island, Lagos',
+      companyLatitude: 6.4281,
+      companyLongitude: 3.4219,
+      companySupervisorName: 'Jane Doe',
+      companySupervisorPhone: '+2348012345678',
+      department: 'Computer Science',
+      state: 'Lagos',
+      startDate: DateTime.utc(2026, 8),
+      endDate: DateTime.utc(2026, 12),
+      submittedAt: DateTime.utc(2026, 7, 31),
+      approvedAt: DateTime.utc(2026, 8, 1),
+      assignedAt: DateTime.utc(2026, 8, 2),
+      createdAt: DateTime.utc(2026, 7, 31),
+      updatedAt: DateTime.utc(2026, 8, 2),
+    );
+
+    final json = internship.toJson();
+    expect(json['status'], 'assigned');
+    expect(json['lecturerId'], 'lecturer-1');
+    expect(json['rejectedAt'], isNull);
+
+    final roundTripped = InternshipModel.fromJson(json);
+    expect(roundTripped.status, InternshipStatus.assigned);
+    expect(roundTripped.lecturerId, 'lecturer-1');
+    expect(roundTripped.assignedAt, DateTime.utc(2026, 8, 2));
+  });
 }
