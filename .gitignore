@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local admin tooling — never commit service account keys or seeded credentials
+scripts/*-account.json
+scripts/node_modules/
+scripts/seed-output.json
+scripts/servio-account.json

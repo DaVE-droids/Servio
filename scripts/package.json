@@ -1,0 +1,9 @@
+{
+  "name": "servio-admin-scripts",
+  "private": true,
+  "description": "Local-only admin tooling for Servio. Never used by the Flutter app itself — requires a Firebase service account key that must never be committed.",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
