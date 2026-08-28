@@ -117,7 +117,14 @@ class UserModel {
   }
 
   /// Returns a copy with selected fields changed.
-  UserModel copyWith({String? firstName, String? lastName}) {
+  UserModel copyWith({
+    String? firstName,
+    String? lastName,
+    String? phoneNumber,
+    String? faculty,
+    String? profilePhotoUrl,
+    DateTime? updatedAt,
+  }) {
     return UserModel(
       uid: uid,
       firstName: firstName ?? this.firstName,
@@ -128,12 +135,12 @@ class UserModel {
       isEmailVerified: isEmailVerified,
       isActive: isActive,
       createdAt: createdAt,
-      updatedAt: updatedAt,
-      phoneNumber: phoneNumber,
-      faculty: faculty,
+      updatedAt: updatedAt ?? this.updatedAt,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      faculty: faculty ?? this.faculty,
       matricNumber: matricNumber,
       staffId: staffId,
-      profilePhotoUrl: profilePhotoUrl,
+      profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
       institutionId: institutionId,
     );
   }

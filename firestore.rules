@@ -1,0 +1,252 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function signedInUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function signedInUserRole() {
+      return signedInUser().data.role;
+    }
+
+    function isStudent() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && signedInUserRole() == 'student';
+    }
+
+    function userFields() {
+      return [
+        'uid',
+        'firstName',
+        'lastName',
+        'email',
+        'phoneNumber',
+        'role',
+        'department',
+        'faculty',
+        'matricNumber',
+        'staffId',
+        'profilePhotoUrl',
+        'isEmailVerified',
+        'isActive',
+        'institutionId',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function studentEditableProfileFields() {
+      return [
+        'firstName',
+        'lastName',
+        'phoneNumber',
+        'faculty',
+        'profilePhotoUrl',
+        'updatedAt'
+      ];
+    }
+
+    function isValidStudentProfileCreate(userId) {
+      return isOwner(userId)
+        && request.resource.data.keys().hasOnly(userFields())
+        && request.resource.data.keys().hasAll([
+          'uid',
+          'firstName',
+          'lastName',
+          'email',
+          'role',
+          'department',
+          'matricNumber',
+          'isEmailVerified',
+          'isActive',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'student'
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.isActive == true
+        && request.resource.data.isEmailVerified == request.auth.token.email_verified
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
+        && request.resource.data.department is string
+        && request.resource.data.matricNumber is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidProfileUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(studentEditableProfileFields())
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.department == resource.data.department
+        && request.resource.data.matricNumber == resource.data.matricNumber
+        && request.resource.data.staffId == resource.data.staffId
+        && request.resource.data.isActive == resource.data.isActive
+        && request.resource.data.isEmailVerified == resource.data.isEmailVerified
+        && request.resource.data.institutionId == resource.data.institutionId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string;
+    }
+
+    function isValidEmailVerificationUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['isEmailVerified', 'updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.department == resource.data.department
+        && request.resource.data.matricNumber == resource.data.matricNumber
+        && request.resource.data.staffId == resource.data.staffId
+        && request.resource.data.isActive == resource.data.isActive
+        && request.resource.data.institutionId == resource.data.institutionId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.isEmailVerified == request.auth.token.email_verified
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function internshipFields() {
+      return [
+        'internshipId',
+        'studentId',
+        'lecturerId',
+        'coordinatorId',
+        'status',
+        'companyName',
+        'companyAddress',
+        'companyLatitude',
+        'companyLongitude',
+        'companySupervisorName',
+        'companySupervisorPhone',
+        'department',
+        'state',
+        'startDate',
+        'endDate',
+        'submittedAt',
+        'approvedAt',
+        'rejectedAt',
+        'assignedAt',
+        'completedAt',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function isValidStudentInternshipCreate(internshipId) {
+      return isStudent()
+        && request.resource.data.keys().hasOnly(internshipFields())
+        && request.resource.data.keys().hasAll([
+          'internshipId',
+          'studentId',
+          'status',
+          'companyName',
+          'companyAddress',
+          'companyLatitude',
+          'companyLongitude',
+          'companySupervisorName',
+          'companySupervisorPhone',
+          'department',
+          'state',
+          'startDate',
+          'endDate',
+          'submittedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.internshipId == internshipId
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.status == 'pending_review'
+        && request.resource.data.lecturerId == null
+        && request.resource.data.coordinatorId == null
+        && request.resource.data.approvedAt == null
+        && request.resource.data.rejectedAt == null
+        && request.resource.data.assignedAt == null
+        && request.resource.data.completedAt == null
+        && request.resource.data.companyName is string
+        && request.resource.data.companyAddress is string
+        && (
+          request.resource.data.companyLatitude is int
+          || request.resource.data.companyLatitude is float
+        )
+        && (
+          request.resource.data.companyLongitude is int
+          || request.resource.data.companyLongitude is float
+        )
+        && request.resource.data.companySupervisorName is string
+        && request.resource.data.companySupervisorPhone is string
+        && request.resource.data.department is string
+        && request.resource.data.state is string
+        && request.resource.data.startDate is timestamp
+        && request.resource.data.endDate is timestamp
+        && request.resource.data.endDate >= request.resource.data.startDate
+        && request.resource.data.submittedAt is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isCoordinator() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && signedInUserRole() == 'coordinator';
+    }
+
+    function isValidCoordinatorApproval() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'coordinatorId', 'approvedAt', 'updatedAt'])
+        && resource.data.status == 'pending_review'
+        && request.resource.data.status == 'approved'
+        && request.resource.data.coordinatorId == request.auth.uid
+        && request.resource.data.approvedAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidCoordinatorRejection() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'coordinatorId', 'rejectedAt', 'updatedAt'])
+        && resource.data.status == 'pending_review'
+        && request.resource.data.status == 'rejected'
+        && request.resource.data.coordinatorId == request.auth.uid
+        && request.resource.data.rejectedAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isValidStudentProfileCreate(userId);
+      allow update: if isOwner(userId)
+        && (
+          isValidProfileUpdate()
+          || isValidEmailVerificationUpdate()
+        );
+      allow delete: if false;
+    }
+
+  match /internships/{internshipId} {
+    allow get, list: if (isStudent() && resource.data.studentId == request.auth.uid)
+      || isCoordinator();
+    allow create: if isValidStudentInternshipCreate(internshipId);
+    allow update: if isCoordinator()
+      && (isValidCoordinatorApproval() || isValidCoordinatorRejection());
+    allow delete: if false;
+  }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

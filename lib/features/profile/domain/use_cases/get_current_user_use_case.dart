@@ -9,6 +9,6 @@ class GetCurrentUserUseCase {
 
   final ProfileRepository _repository;
 
-  /// Executes the placeholder profile load workflow.
-  Future<Result<UserModel>> call() => _repository.getCurrentUser();
+  /// Loads the current user's profile.
+  Future<Result<UserModel>> call(String uid) => _repository.getCurrentUser(uid);
 }

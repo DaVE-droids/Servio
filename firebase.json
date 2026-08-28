@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"servio-e2974","appId":"1:117526059669:android:85a767d089e9081ff3199c","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"servio-e2974","appId":"1:117526059669:ios:4e93d57797d6465df3199c","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"servio-e2974","configurations":{"android":"1:117526059669:android:85a767d089e9081ff3199c","ios":"1:117526059669:ios:4e93d57797d6465df3199c","web":"1:117526059669:web:3c6ecd0a88ef2197f3199c"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "servio-e2974",
+          "appId": "1:117526059669:android:85a767d089e9081ff3199c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "servio-e2974",
+          "appId": "1:117526059669:ios:4e93d57797d6465df3199c",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "servio-e2974",
+          "configurations": {
+            "android": "1:117526059669:android:85a767d089e9081ff3199c",
+            "ios": "1:117526059669:ios:4e93d57797d6465df3199c",
+            "web": "1:117526059669:web:3c6ecd0a88ef2197f3199c"
+          }
+        }
+      }
+    }
+  }
+}
