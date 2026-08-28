@@ -23,10 +23,12 @@ class InternshipModel {
     required this.createdAt,
     required this.updatedAt,
     this.lecturerId,
+    this.lecturerName,
     this.coordinatorId,
     this.approvedAt,
     this.rejectedAt,
     this.assignedAt,
+    this.activatedAt,
     this.completedAt,
   });
 
@@ -38,6 +40,13 @@ class InternshipModel {
 
   /// Assigned lecturer ID, nullable until assigned.
   final String? lecturerId;
+
+  /// Assigned lecturer's display name, denormalized at assignment time so
+  /// the student (who cannot read the lecturer's profile document) and
+  /// downstream records (attendance, logbook, supervision) can display it
+  /// without a cross-collection read. Not part of the DDS's literal
+  /// `internships` field list — see docs/CHANGELOG.md for the reasoning.
+  final String? lecturerName;
 
   /// Coordinator ID, optional until reviewed.
   final String? coordinatorId;
@@ -87,6 +96,12 @@ class InternshipModel {
   /// Lecturer assignment timestamp.
   final DateTime? assignedAt;
 
+  /// Activation timestamp (assigned -> active). Not part of the DDS's
+  /// literal `internships` field list, which defines the `active` status
+  /// value but no corresponding timestamp — added for consistency with
+  /// every other lifecycle transition. See docs/CHANGELOG.md.
+  final DateTime? activatedAt;
+
   /// Completion timestamp.
   final DateTime? completedAt;
 
@@ -102,6 +117,7 @@ class InternshipModel {
       internshipId: json['internshipId'] as String,
       studentId: json['studentId'] as String,
       lecturerId: json['lecturerId'] as String?,
+      lecturerName: json['lecturerName'] as String?,
       coordinatorId: json['coordinatorId'] as String?,
       status: InternshipStatusSerialization.fromFirestore(
         json['status'] as String,
@@ -120,6 +136,7 @@ class InternshipModel {
       approvedAt: _readNullableDateTime(json['approvedAt']),
       rejectedAt: _readNullableDateTime(json['rejectedAt']),
       assignedAt: _readNullableDateTime(json['assignedAt']),
+      activatedAt: _readNullableDateTime(json['activatedAt']),
       completedAt: _readNullableDateTime(json['completedAt']),
       createdAt: _readDateTime(json['createdAt']),
       updatedAt: _readDateTime(json['updatedAt']),
@@ -132,6 +149,7 @@ class InternshipModel {
       'internshipId': internshipId,
       'studentId': studentId,
       'lecturerId': lecturerId,
+      'lecturerName': lecturerName,
       'coordinatorId': coordinatorId,
       'status': status.firestoreValue,
       'companyName': companyName,
@@ -148,6 +166,7 @@ class InternshipModel {
       'approvedAt': _writeNullableDateTime(approvedAt),
       'rejectedAt': _writeNullableDateTime(rejectedAt),
       'assignedAt': _writeNullableDateTime(assignedAt),
+      'activatedAt': _writeNullableDateTime(activatedAt),
       'completedAt': _writeNullableDateTime(completedAt),
       'createdAt': Timestamp.fromDate(createdAt.toUtc()),
       'updatedAt': Timestamp.fromDate(updatedAt.toUtc()),
@@ -160,8 +179,10 @@ class InternshipModel {
       internshipId: internshipId,
       studentId: studentId,
       lecturerId: lecturerId,
+      lecturerName: lecturerName,
       coordinatorId: coordinatorId,
       status: status ?? this.status,
+      activatedAt: activatedAt,
       companyName: companyName,
       companyAddress: companyAddress,
       companyLatitude: companyLatitude,

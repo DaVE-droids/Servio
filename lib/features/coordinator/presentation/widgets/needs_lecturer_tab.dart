@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_status_chip.dart';
 import '../../../internship/data/models/internship_model.dart';
+import '../../../profile/data/models/user_model.dart';
 import '../providers/approved_internships_provider.dart';
 import 'assign_lecturer_dialog.dart';
 import 'pending_review_tab.dart' show formatShortDate;
@@ -67,13 +68,13 @@ class _NeedsLecturerTabState extends ConsumerState<NeedsLecturerTab> {
   }
 
   Future<void> _assign(InternshipModel internship) async {
-    final lecturerId = await showDialog<String>(
+    final lecturer = await showDialog<UserModel>(
       context: context,
       builder: (_) =>
           AssignLecturerDialog(companyName: internship.companyName),
     );
 
-    if (lecturerId == null || !mounted) {
+    if (lecturer == null || !mounted) {
       return;
     }
 
@@ -83,7 +84,8 @@ class _NeedsLecturerTabState extends ConsumerState<NeedsLecturerTab> {
         .read(approvedInternshipsProvider.notifier)
         .assignLecturer(
           internshipId: internship.internshipId,
-          lecturerId: lecturerId,
+          lecturerId: lecturer.uid,
+          lecturerName: '${lecturer.firstName} ${lecturer.lastName}',
         );
 
     if (!mounted) {

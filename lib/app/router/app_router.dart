@@ -10,12 +10,14 @@ import '../../features/authentication/presentation/screens/forgot_password_scree
 import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/register_screen.dart';
 import '../../features/authentication/presentation/widgets/authenticated_placeholder_screen.dart';
+import '../../features/attendance/presentation/screens/student_attendance_screen.dart';
 import '../../features/coordinator/presentation/screens/coordinator_dashboard_screen.dart';
 import '../../features/dashboard/presentation/screens/student_coming_soon_screen.dart';
 import '../../features/dashboard/presentation/screens/student_dashboard_screen.dart';
 import '../../features/dashboard/presentation/widgets/student_app_shell.dart';
 import '../../features/internship/presentation/screens/student_internship_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_assigned_students_screen.dart';
+import '../../features/lecturer/presentation/screens/lecturer_attendance_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_dashboard_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../constants/app_routes.dart';
@@ -118,17 +120,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.attendance,
-        pageBuilder: (context, state) => NoTransitionPage(
-          child: _studentShell(
-            path: state.uri.path,
-            title: 'Attendance',
-            child: const StudentComingSoonScreen(
-              title: 'Attendance Coming Soon',
-              message:
-                  'Daily check-in, checkout, and attendance history will be available in the attendance module.',
+        pageBuilder: (context, state) {
+          if (session?.role == UserRole.lecturer) {
+            // Reached via push() from the lecturer dashboard, not a tab
+            // switch, so this keeps the default "drilling in" transition.
+            return MaterialPage(child: const LecturerAttendanceScreen());
+          }
+          if (session?.role != UserRole.student) {
+            return NoTransitionPage(
+              child: const AuthenticatedPlaceholderScreen(
+                title: 'Attendance',
+                description: 'Attendance screens will live here.',
+              ),
+            );
+          }
+          return NoTransitionPage(
+            child: _studentShell(
+              path: state.uri.path,
+              title: 'Attendance',
+              child: const StudentAttendanceScreen(),
             ),
-          ),
-        ),
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.logbook,

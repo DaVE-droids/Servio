@@ -12,6 +12,8 @@ import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/dashboard_summary_card.dart';
+import '../../../attendance/presentation/controllers/attendance_state.dart';
+import '../../../attendance/presentation/providers/attendance_providers.dart';
 import '../../../internship/presentation/controllers/internship_state.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../../profile/data/models/user_model.dart';
@@ -26,6 +28,7 @@ class StudentDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileValue = ref.watch(profileControllerProvider);
     final internshipValue = ref.watch(internshipControllerProvider);
+    final attendanceValue = ref.watch(attendanceControllerProvider);
 
     return profileValue.when(
       loading: () => const AppLoading(message: 'Loading dashboard...'),
@@ -55,7 +58,10 @@ class StudentDashboardScreen extends ConsumerWidget {
             children: [
               _DashboardHeader(user: user),
               const SizedBox(height: AppSpacing.md),
-              _DashboardGrid(internshipValue: internshipValue),
+              _DashboardGrid(
+                internshipValue: internshipValue,
+                attendanceValue: attendanceValue,
+              ),
               const SizedBox(height: AppSpacing.md),
               AppCard(
                 child: Column(
@@ -115,9 +121,13 @@ class StudentDashboardScreen extends ConsumerWidget {
 }
 
 class _DashboardGrid extends StatelessWidget {
-  const _DashboardGrid({required this.internshipValue});
+  const _DashboardGrid({
+    required this.internshipValue,
+    required this.attendanceValue,
+  });
 
   final AsyncValue<InternshipState> internshipValue;
+  final AsyncValue<AttendanceState> attendanceValue;
 
   /// Fixed card height. Chosen to comfortably fit an icon/title row, a
   /// value line, a two-line description, and an optional action button —
@@ -136,14 +146,7 @@ class _DashboardGrid extends StatelessWidget {
             : 1;
         final cards = [
           _internshipCard(context),
-          const DashboardSummaryCard(
-            title: "Today's Attendance",
-            value: 'Not recorded',
-            description:
-                'Check-in and checkout status will appear here after attendance is implemented.',
-            icon: Icons.fact_check_outlined,
-            color: AppColors.information,
-          ),
+          _attendanceCard(context),
           const DashboardSummaryCard(
             title: 'Pending Logbook',
             value: 'Coming soon',
@@ -164,6 +167,51 @@ class _DashboardGrid extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: cards.length,
           itemBuilder: (context, index) => cards[index],
+        );
+      },
+    );
+  }
+
+  Widget _attendanceCard(BuildContext context) {
+    return attendanceValue.when(
+      loading: () => const DashboardSummaryCard(
+        title: "Today's Attendance",
+        value: 'Loading...',
+        description: 'Checking your attendance status.',
+        icon: Icons.fact_check_outlined,
+        color: AppColors.information,
+      ),
+      error: (error, stackTrace) => const DashboardSummaryCard(
+        title: "Today's Attendance",
+        value: 'Unavailable',
+        description: 'Unable to load your attendance status right now.',
+        icon: Icons.fact_check_outlined,
+        color: AppColors.error,
+      ),
+      data: (state) {
+        final today = state.today;
+        if (today == null) {
+          return DashboardSummaryCard(
+            title: "Today's Attendance",
+            value: 'Not checked in',
+            description: 'Check in once your internship is active.',
+            icon: Icons.fact_check_outlined,
+            color: AppColors.warning,
+            actionLabel: 'View',
+            onActionPressed: () => context.go(AppRoutes.attendance),
+          );
+        }
+        final checkedOut = today.checkOutTime != null;
+        return DashboardSummaryCard(
+          title: "Today's Attendance",
+          value: checkedOut ? 'Completed' : 'Checked in',
+          description: checkedOut
+              ? 'Checked in and out for today.'
+              : "Checked in — don't forget to check out.",
+          icon: Icons.fact_check_outlined,
+          color: checkedOut ? AppColors.success : AppColors.information,
+          actionLabel: 'View',
+          onActionPressed: () => context.go(AppRoutes.attendance),
         );
       },
     );

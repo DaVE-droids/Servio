@@ -124,6 +124,7 @@ service cloud.firestore {
         'internshipId',
         'studentId',
         'lecturerId',
+        'lecturerName',
         'coordinatorId',
         'status',
         'companyName',
@@ -140,6 +141,7 @@ service cloud.firestore {
         'approvedAt',
         'rejectedAt',
         'assignedAt',
+        'activatedAt',
         'completedAt',
         'createdAt',
         'updatedAt'
@@ -171,10 +173,12 @@ service cloud.firestore {
         && request.resource.data.studentId == request.auth.uid
         && request.resource.data.status == 'pending_review'
         && request.resource.data.lecturerId == null
+        && request.resource.data.lecturerName == null
         && request.resource.data.coordinatorId == null
         && request.resource.data.approvedAt == null
         && request.resource.data.rejectedAt == null
         && request.resource.data.assignedAt == null
+        && request.resource.data.activatedAt == null
         && request.resource.data.completedAt == null
         && request.resource.data.companyName is string
         && request.resource.data.companyAddress is string
@@ -238,11 +242,95 @@ service cloud.firestore {
 
     function isValidCoordinatorAssignment() {
       return request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['status', 'lecturerId', 'assignedAt', 'updatedAt'])
+          .hasOnly(['status', 'lecturerId', 'lecturerName', 'assignedAt', 'updatedAt'])
         && resource.data.status == 'approved'
         && request.resource.data.status == 'assigned'
         && isLecturer(request.resource.data.lecturerId)
+        && request.resource.data.lecturerName is string
         && request.resource.data.assignedAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function attendanceFields() {
+      return [
+        'attendanceId',
+        'internshipId',
+        'studentId',
+        'studentName',
+        'studentMatricNumber',
+        'lecturerId',
+        'lecturerName',
+        'companyName',
+        'state',
+        'date',
+        'checkInTime',
+        'checkOutTime',
+        'checkInLatitude',
+        'checkInLongitude',
+        'checkOutLatitude',
+        'checkOutLongitude',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ];
+    }
+
+    function isInternshipActiveForStudent(internshipId, studentId) {
+      return exists(/databases/$(database)/documents/internships/$(internshipId))
+        && get(/databases/$(database)/documents/internships/$(internshipId)).data.studentId
+          == studentId
+        && get(/databases/$(database)/documents/internships/$(internshipId)).data.status
+          == 'active';
+    }
+
+    function isValidAttendanceCreate() {
+      return isStudent()
+        && request.resource.data.keys().hasOnly(attendanceFields())
+        && request.resource.data.keys().hasAll([
+          'attendanceId',
+          'internshipId',
+          'studentId',
+          'studentName',
+          'studentMatricNumber',
+          'lecturerId',
+          'lecturerName',
+          'companyName',
+          'state',
+          'date',
+          'checkInTime',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.studentId == request.auth.uid
+        && isInternshipActiveForStudent(
+          request.resource.data.internshipId,
+          request.auth.uid
+        )
+        && request.resource.data.status == 'checked_in'
+        && request.resource.data.checkOutTime == null
+        && request.resource.data.date is timestamp
+        && request.resource.data.checkInTime is timestamp
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidAttendanceCheckOut() {
+      return isOwner(resource.data.studentId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['checkOutTime', 'status', 'updatedAt'])
+        && resource.data.status == 'checked_in'
+        && request.resource.data.status == 'completed'
+        && request.resource.data.checkOutTime is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidCoordinatorActivation() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'activatedAt', 'updatedAt'])
+        && resource.data.status == 'assigned'
+        && request.resource.data.status == 'active'
+        && request.resource.data.activatedAt is timestamp
         && request.resource.data.updatedAt is timestamp;
     }
 
@@ -268,7 +356,31 @@ service cloud.firestore {
         isValidCoordinatorApproval()
         || isValidCoordinatorRejection()
         || isValidCoordinatorAssignment()
+        || isValidCoordinatorActivation()
       );
+    allow delete: if false;
+  }
+
+  match /attendance/{attendanceId} {
+    // get() and list() are deliberately separate rules, not combined.
+    // get() needs the `!exists(...)` branch so a lookup on today's
+    // not-yet-created deterministic doc ID resolves to "not found"
+    // instead of erroring (resource is null for a missing document, so
+    // resource.data.studentId throws, which Firestore treats as a
+    // denial). list() never needs that branch (every document a list
+    // query returns already exists) — and mixing an exists()/get() call
+    // into a list rule's OR chain caused Firestore to silently exclude
+    // otherwise-matching documents from results rather than erroring.
+    allow get: if (isSignedIn()
+        && !exists(/databases/$(database)/documents/attendance/$(attendanceId)))
+      || (isStudent() && resource.data.studentId == request.auth.uid)
+      || (isLecturerUser() && resource.data.lecturerId == request.auth.uid)
+      || isCoordinator();
+    allow list: if (isStudent() && resource.data.studentId == request.auth.uid)
+      || (isLecturerUser() && resource.data.lecturerId == request.auth.uid)
+      || isCoordinator();
+    allow create: if isValidAttendanceCreate();
+    allow update: if isValidAttendanceCheckOut();
     allow delete: if false;
   }
 

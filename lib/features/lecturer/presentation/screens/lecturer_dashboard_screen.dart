@@ -85,6 +85,12 @@ class LecturerDashboardScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       AppButton(
+                        label: 'View Attendance',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: () => context.push(AppRoutes.attendance),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      AppButton(
                         label: 'Open Profile',
                         variant: AppButtonVariant.secondary,
                         onPressed: () => context.push(AppRoutes.profile),

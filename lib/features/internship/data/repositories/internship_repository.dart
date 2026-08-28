@@ -224,15 +224,47 @@ class InternshipRepository {
     }
   }
 
+  /// Retrieves internships assigned a lecturer but not yet activated.
+  Future<Result<List<InternshipModel>>> getReadyToStartInternships() async {
+    try {
+      final snapshot = await _service.getReadyToStartInternships();
+      final internships = snapshot.docs
+          .map((doc) => InternshipModel.fromJson(doc.data()))
+          .toList()
+        ..sort((a, b) => (a.assignedAt ?? a.updatedAt).compareTo(
+          b.assignedAt ?? b.updatedAt,
+        ));
+      return Success(internships);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  /// Activates an internship, moving assigned -> active.
+  Future<Result<void>> activateInternship(String internshipId) async {
+    try {
+      await _service.activateInternship(internshipId: internshipId);
+      return const Success(null);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
   /// Assigns a lecturer to an approved internship.
   Future<Result<void>> assignLecturer({
     required String internshipId,
     required String lecturerId,
+    required String lecturerName,
   }) async {
     try {
       await _service.assignLecturer(
         internshipId: internshipId,
         lecturerId: lecturerId,
+        lecturerName: lecturerName,
       );
       return const Success(null);
     } on FirebaseException catch (error) {

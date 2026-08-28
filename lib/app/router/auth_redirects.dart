@@ -37,6 +37,7 @@ abstract final class AuthRedirects {
         AppRoutes.assignedStudents,
         AppRoutes.visitReports,
         AppRoutes.logbook,
+        AppRoutes.attendance,
       }.contains(path),
       UserRole.coordinator => {
         AppRoutes.coordinatorDashboard,

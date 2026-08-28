@@ -98,15 +98,35 @@ class InternshipService {
         .get();
   }
 
+  /// Returns internships assigned a lecturer but not yet activated.
+  Future<QuerySnapshot<Map<String, dynamic>>> getReadyToStartInternships() {
+    return _firestore
+        .collection('internships')
+        .where('status', isEqualTo: 'assigned')
+        .get();
+  }
+
+  /// Activates an internship, moving assigned -> active.
+  Future<void> activateInternship({required String internshipId}) {
+    final now = Timestamp.fromDate(DateTime.now().toUtc());
+    return _firestore.collection('internships').doc(internshipId).update({
+      'status': 'active',
+      'activatedAt': now,
+      'updatedAt': now,
+    });
+  }
+
   /// Assigns a lecturer to an approved internship.
   Future<void> assignLecturer({
     required String internshipId,
     required String lecturerId,
+    required String lecturerName,
   }) {
     final now = Timestamp.fromDate(DateTime.now().toUtc());
     return _firestore.collection('internships').doc(internshipId).update({
       'status': 'assigned',
       'lecturerId': lecturerId,
+      'lecturerName': lecturerName,
       'assignedAt': now,
       'updatedAt': now,
     });

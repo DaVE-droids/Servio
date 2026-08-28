@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
+import 'ready_to_start_provider.dart';
 
 /// Manages approved internships awaiting lecturer assignment.
 class ApprovedInternshipsController
@@ -21,15 +22,20 @@ class ApprovedInternshipsController
   Future<Result<void>> assignLecturer({
     required String internshipId,
     required String lecturerId,
+    required String lecturerName,
   }) async {
     final repository = ref.read(internshipRepositoryProvider);
     final result = await repository.assignLecturer(
       internshipId: internshipId,
       lecturerId: lecturerId,
+      lecturerName: lecturerName,
     );
 
     if (result is Success<void>) {
       ref.invalidateSelf(); // triggers build() to run again, refreshing the list
+      // Assigning a lecturer moves the placement into the "ready to start"
+      // bucket, so that list needs to pick it up too.
+      ref.invalidate(readyToStartProvider);
     }
     return result;
   }
