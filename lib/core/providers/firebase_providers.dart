@@ -56,7 +56,7 @@ final locationServiceProvider = Provider<LocationService>((ref) {
   return const LocationService();
 });
 
-/// Provides Servio's maps service placeholder.
+/// Provides Servio's maps service (address geocoding).
 final mapsServiceProvider = Provider<MapsService>((ref) {
-  return const MapsService();
+  return MapsService();
 });

@@ -46,6 +46,8 @@ class InternshipRepository {
     required String studentId,
     required String department,
     required InternshipSubmissionRequest request,
+    required double companyLatitude,
+    required double companyLongitude,
   }) async {
     try {
       if (studentId.trim().isEmpty) {
@@ -90,8 +92,8 @@ class InternshipRepository {
         status: InternshipStatus.pendingReview,
         companyName: request.companyName.trim(),
         companyAddress: request.companyAddress.trim(),
-        companyLatitude: request.companyLatitude,
-        companyLongitude: request.companyLongitude,
+        companyLatitude: companyLatitude,
+        companyLongitude: companyLongitude,
         companySupervisorName: request.companySupervisorName.trim(),
         companySupervisorPhone: request.companySupervisorPhone.trim(),
         department: department.trim(),

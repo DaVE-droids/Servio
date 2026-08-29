@@ -85,6 +85,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 label: 'Email',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
                 errorText: _errors['email'],
               ),
               const SizedBox(height: AppSpacing.sm),

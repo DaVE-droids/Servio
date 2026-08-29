@@ -13,6 +13,8 @@ class AppTextField extends StatelessWidget {
     this.maxLines = 1,
     this.enabled = true,
     this.readOnly = false,
+    this.textCapitalization = TextCapitalization.none,
+    this.autocorrect = true,
     super.key,
   });
 
@@ -43,6 +45,13 @@ class AppTextField extends StatelessWidget {
   /// Whether the field is read-only.
   final bool readOnly;
 
+  /// Auto-capitalization behavior. Defaults to none so fields like email
+  /// aren't capitalized by the platform's autocapitalization heuristics.
+  final TextCapitalization textCapitalization;
+
+  /// Whether the platform should offer autocorrect suggestions.
+  final bool autocorrect;
+
   @override
   Widget build(BuildContext context) {
     return TextField(
@@ -52,6 +61,8 @@ class AppTextField extends StatelessWidget {
       maxLines: maxLines,
       enabled: enabled,
       readOnly: readOnly,
+      textCapitalization: textCapitalization,
+      autocorrect: autocorrect,
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,

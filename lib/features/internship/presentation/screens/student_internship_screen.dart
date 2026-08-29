@@ -27,9 +27,6 @@ class StudentInternshipScreen extends ConsumerStatefulWidget {
 
 class _StudentInternshipScreenState
     extends ConsumerState<StudentInternshipScreen> {
-  static const _placeholderCoordinate = 0.0;
-
-
   final _companyNameController = TextEditingController();
   final _companyAddressController = TextEditingController();
   final _supervisorNameController = TextEditingController();
@@ -258,11 +255,6 @@ class _StudentInternshipScreenState
           InternshipSubmissionRequest(
             companyName: _companyNameController.text,
             companyAddress: _companyAddressController.text,
-            // Coordinates aren't captured yet — there's no Maps/geocoding
-            // picker built (see docs/Servio_Roadmap_v1.0.md). Placeholder
-            // until company location can be derived automatically.
-            companyLatitude: _placeholderCoordinate,
-            companyLongitude: _placeholderCoordinate,
             companySupervisorName: _supervisorNameController.text,
             companySupervisorPhone: _supervisorPhoneController.text,
             state: _stateController.text,

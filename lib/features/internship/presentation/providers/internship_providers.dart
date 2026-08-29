@@ -30,7 +30,10 @@ final getCurrentInternshipUseCaseProvider =
 final submitInternshipUseCaseProvider = Provider<SubmitInternshipUseCase>((
   ref,
 ) {
-  return SubmitInternshipUseCase(ref.watch(internshipRepositoryProvider));
+  return SubmitInternshipUseCase(
+    ref.watch(internshipRepositoryProvider),
+    ref.watch(mapsServiceProvider),
+  );
 });
 
 /// Provides the internship controller.

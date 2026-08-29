@@ -63,6 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 label: 'Email',
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
                 errorText: _emailError,
               ),
               const SizedBox(height: AppSpacing.sm),
