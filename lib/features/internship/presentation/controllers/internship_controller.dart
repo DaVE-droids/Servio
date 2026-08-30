@@ -11,15 +11,23 @@ import '../providers/internship_providers.dart';
 /// Controller for student internship UI state and actions.
 class InternshipController extends AsyncNotifier<InternshipState> {
   /// Builds the initial internship state by loading the current placement.
+  /// Watches the auth session (not just reads it) so switching accounts —
+  /// logging out and into a different user in the same app session —
+  /// reloads the correct placement instead of continuing to serve whichever
+  /// user was signed in when this provider first built.
   @override
   Future<InternshipState> build() async {
-    return _loadCurrentInternship();
+    final uid = switch (ref.watch(authSessionProvider)) {
+      AsyncData(:final value) => value.firebaseUser?.uid,
+      _ => null,
+    };
+    return _loadCurrentInternship(uid);
   }
 
   /// Refreshes the current internship.
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(_loadCurrentInternship);
+    state = await AsyncValue.guard(() => _loadCurrentInternship(_currentUid()));
   }
 
   /// Submits a student placement request.
@@ -31,6 +39,7 @@ class InternshipController extends AsyncNotifier<InternshipState> {
     if (previous.currentInternship != null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage: 'You already have an internship placement on record.',
         ),
       );
@@ -45,6 +54,7 @@ class InternshipController extends AsyncNotifier<InternshipState> {
       state = AsyncData(
         previous.copyWith(
           isSubmitting: false,
+          clearMessages: true,
           errorMessage: 'Your session has expired. Please sign in again.',
         ),
       );
@@ -59,6 +69,7 @@ class InternshipController extends AsyncNotifier<InternshipState> {
       state = AsyncData(
         previous.copyWith(
           isSubmitting: false,
+          clearMessages: true,
           errorMessage:
               'Your profile could not be loaded. Please refresh and try again.',
         ),
@@ -76,6 +87,7 @@ class InternshipController extends AsyncNotifier<InternshipState> {
           previous.copyWith(
             currentInternship: data,
             isSubmitting: false,
+            clearMessages: true,
             successMessage: 'Internship placement submitted for review.',
             lastLoadedAt: DateTime.now().toUtc(),
           ),
@@ -83,14 +95,17 @@ class InternshipController extends AsyncNotifier<InternshipState> {
         return true;
       case Failure<InternshipModel>(:final error):
         state = AsyncData(
-          previous.copyWith(isSubmitting: false, errorMessage: error.message),
+          previous.copyWith(
+            isSubmitting: false,
+            clearMessages: true,
+            errorMessage: error.message,
+          ),
         );
         return false;
     }
   }
 
-  Future<InternshipState> _loadCurrentInternship() async {
-    final uid = _currentUid();
+  Future<InternshipState> _loadCurrentInternship(String? uid) async {
     if (uid == null) {
       return const InternshipState(
         errorMessage: 'Your session has expired. Please sign in again.',

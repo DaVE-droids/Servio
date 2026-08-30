@@ -56,6 +56,7 @@ class LogbookController extends AsyncNotifier<LogbookState> {
     if (internship == null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage: 'Logbook entries are only available for an active internship.',
         ),
       );
@@ -69,6 +70,7 @@ class LogbookController extends AsyncNotifier<LogbookState> {
     if (profile == null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage:
               'Your profile could not be loaded. Please refresh and try again.',
         ),
@@ -79,6 +81,7 @@ class LogbookController extends AsyncNotifier<LogbookState> {
     if (internship.lecturerId == null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage: 'Your internship does not have an assigned lecturer yet.',
         ),
       );
@@ -118,12 +121,17 @@ class LogbookController extends AsyncNotifier<LogbookState> {
             today: data,
             history: [data, ...historyWithoutToday],
             isSubmitting: false,
+            clearMessages: true,
             successMessage: 'Logbook entry submitted.',
           ),
         );
       case Failure(:final error):
         state = AsyncData(
-          previous.copyWith(isSubmitting: false, errorMessage: error.message),
+          previous.copyWith(
+            isSubmitting: false,
+            clearMessages: true,
+            errorMessage: error.message,
+          ),
         );
     }
   }

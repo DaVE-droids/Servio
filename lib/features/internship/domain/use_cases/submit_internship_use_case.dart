@@ -1,38 +1,28 @@
 import '../../../../core/result/result.dart';
-import '../../../../core/services/maps_service.dart';
 import '../../data/models/internship_model.dart';
 import '../../data/models/internship_submission_request.dart';
 import '../../data/repositories/internship_repository.dart';
 
-/// Orchestrates student placement submission: resolves the company address
-/// into coordinates before delegating the write to the repository.
+/// Use case for placement submission. The company address is resolved to
+/// coordinates interactively while the student picks it from search
+/// suggestions (see `AddressSearchField`/`MapsService.searchAddress`), so
+/// this use case just passes the already-resolved request through.
 class SubmitInternshipUseCase {
   /// Creates a submit internship use case.
-  const SubmitInternshipUseCase(this._repository, this._mapsService);
+  const SubmitInternshipUseCase(this._repository);
 
   final InternshipRepository _repository;
-  final MapsService _mapsService;
 
   /// Executes student placement submission.
   Future<Result<InternshipModel>> call({
     required String studentId,
     required String department,
     required InternshipSubmissionRequest request,
-  }) async {
-    final geocodeResult = await _mapsService.geocodeAddress(
-      request.companyAddress,
+  }) {
+    return _repository.submitInternship(
+      studentId: studentId,
+      department: department,
+      request: request,
     );
-    switch (geocodeResult) {
-      case Failure<GeocodedLocation>():
-        return Failure(geocodeResult.error);
-      case Success<GeocodedLocation>(:final data):
-        return _repository.submitInternship(
-          studentId: studentId,
-          department: department,
-          request: request,
-          companyLatitude: data.latitude,
-          companyLongitude: data.longitude,
-        );
-    }
   }
 }

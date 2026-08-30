@@ -4,8 +4,11 @@ class InternshipSubmissionRequest {
   const InternshipSubmissionRequest({
     required this.companyName,
     required this.companyAddress,
+    required this.companyLatitude,
+    required this.companyLongitude,
     required this.companySupervisorName,
     required this.companySupervisorPhone,
+    required this.country,
     required this.state,
     required this.startDate,
     required this.endDate,
@@ -14,15 +17,25 @@ class InternshipSubmissionRequest {
   /// Host company name.
   final String companyName;
 
-  /// Formatted company address. Geocoded into coordinates during
-  /// submission, so no lat/long fields are collected here.
+  /// Formatted company address, as picked from address search suggestions.
   final String companyAddress;
+
+  /// Company latitude, carried directly from the picked address suggestion
+  /// — no separate geocoding step needed at submission time.
+  final double companyLatitude;
+
+  /// Company longitude, carried directly from the picked address
+  /// suggestion.
+  final double companyLongitude;
 
   /// Company supervisor name.
   final String companySupervisorName;
 
   /// Company supervisor phone number.
   final String companySupervisorPhone;
+
+  /// Company country.
+  final String country;
 
   /// Company state.
   final String state;

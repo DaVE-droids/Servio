@@ -16,6 +16,7 @@ class InternshipModel {
     required this.companySupervisorName,
     required this.companySupervisorPhone,
     required this.department,
+    required this.country,
     required this.state,
     required this.startDate,
     required this.endDate,
@@ -75,6 +76,9 @@ class InternshipModel {
   /// Student department copied from the profile at submission time.
   final String department;
 
+  /// Company country.
+  final String country;
+
   /// Company state.
   final String state;
 
@@ -129,6 +133,7 @@ class InternshipModel {
       companySupervisorName: json['companySupervisorName'] as String,
       companySupervisorPhone: json['companySupervisorPhone'] as String,
       department: json['department'] as String,
+      country: json['country'] as String,
       state: json['state'] as String,
       startDate: _readDateTime(json['startDate']),
       endDate: _readDateTime(json['endDate']),
@@ -159,6 +164,7 @@ class InternshipModel {
       'companySupervisorName': companySupervisorName,
       'companySupervisorPhone': companySupervisorPhone,
       'department': department,
+      'country': country,
       'state': state,
       'startDate': Timestamp.fromDate(startDate.toUtc()),
       'endDate': Timestamp.fromDate(endDate.toUtc()),
@@ -190,6 +196,7 @@ class InternshipModel {
       companySupervisorName: companySupervisorName,
       companySupervisorPhone: companySupervisorPhone,
       department: department,
+      country: country,
       state: state,
       startDate: startDate,
       endDate: endDate,

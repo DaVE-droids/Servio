@@ -10,16 +10,24 @@ import 'profile_state.dart';
 
 /// Controller for profile UI state and profile actions.
 class ProfileController extends AsyncNotifier<ProfileState> {
-  /// Builds the initial profile state by loading the signed-in user's profile.
+  /// Builds the initial profile state by loading the signed-in user's
+  /// profile. Watches the auth session (not just reads it) so switching
+  /// accounts — logging out and into a different user in the same app
+  /// session — reloads the correct profile instead of continuing to serve
+  /// whichever user was signed in when this provider first built.
   @override
   Future<ProfileState> build() async {
-    return _loadProfile();
+    final uid = switch (ref.watch(authSessionProvider)) {
+      AsyncData(:final value) => value.firebaseUser?.uid,
+      _ => null,
+    };
+    return _loadProfile(uid);
   }
 
   /// Refreshes the current user's profile.
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(_loadProfile);
+    state = await AsyncValue.guard(() => _loadProfile(_currentUid()));
   }
 
   /// Saves permitted profile changes.
@@ -35,6 +43,7 @@ class ProfileController extends AsyncNotifier<ProfileState> {
       state = AsyncData(
         previous.copyWith(
           isSaving: false,
+          clearMessages: true,
           errorMessage: 'Your session has expired. Please sign in again.',
         ),
       );
@@ -51,6 +60,7 @@ class ProfileController extends AsyncNotifier<ProfileState> {
           previous.copyWith(
             user: data,
             isSaving: false,
+            clearMessages: true,
             successMessage: 'Profile updated successfully.',
             lastLoadedAt: DateTime.now().toUtc(),
           ),
@@ -58,7 +68,11 @@ class ProfileController extends AsyncNotifier<ProfileState> {
         return true;
       case Failure<UserModel>(:final error):
         state = AsyncData(
-          previous.copyWith(isSaving: false, errorMessage: error.message),
+          previous.copyWith(
+            isSaving: false,
+            clearMessages: true,
+            errorMessage: error.message,
+          ),
         );
         return false;
     }
@@ -79,6 +93,7 @@ class ProfileController extends AsyncNotifier<ProfileState> {
       state = AsyncData(
         previous.copyWith(
           isUploadingPhoto: false,
+          clearMessages: true,
           errorMessage: 'Your session has expired. Please sign in again.',
         ),
       );
@@ -95,6 +110,7 @@ class ProfileController extends AsyncNotifier<ProfileState> {
           previous.copyWith(
             user: data,
             isUploadingPhoto: false,
+            clearMessages: true,
             successMessage: 'Profile photo updated successfully.',
             lastLoadedAt: DateTime.now().toUtc(),
           ),
@@ -104,6 +120,7 @@ class ProfileController extends AsyncNotifier<ProfileState> {
         state = AsyncData(
           previous.copyWith(
             isUploadingPhoto: false,
+            clearMessages: true,
             errorMessage: error.message,
           ),
         );
@@ -111,8 +128,7 @@ class ProfileController extends AsyncNotifier<ProfileState> {
     }
   }
 
-  Future<ProfileState> _loadProfile() async {
-    final uid = _currentUid();
+  Future<ProfileState> _loadProfile(String? uid) async {
     if (uid == null) {
       return const ProfileState(
         errorMessage: 'Your session has expired. Please sign in again.',

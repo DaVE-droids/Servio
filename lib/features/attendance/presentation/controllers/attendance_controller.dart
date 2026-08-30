@@ -52,6 +52,7 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
     if (internship == null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage: 'Attendance is only available for an active internship.',
         ),
       );
@@ -65,6 +66,7 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
     if (profile == null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage:
               'Your profile could not be loaded. Please refresh and try again.',
         ),
@@ -75,6 +77,7 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
     if (internship.lecturerId == null) {
       state = AsyncData(
         previous.copyWith(
+          clearMessages: true,
           errorMessage: 'Your internship does not have an assigned lecturer yet.',
         ),
       );
@@ -106,12 +109,17 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
             today: data,
             history: [data, ...previous.history],
             isProcessing: false,
+            clearMessages: true,
             successMessage: 'Checked in successfully.',
           ),
         );
       case Failure(:final error):
         state = AsyncData(
-          previous.copyWith(isProcessing: false, errorMessage: error.message),
+          previous.copyWith(
+            isProcessing: false,
+            clearMessages: true,
+            errorMessage: error.message,
+          ),
         );
     }
   }
@@ -136,17 +144,26 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
 
     switch (result) {
       case Success():
-        state = AsyncData(previous.copyWith(isProcessing: false));
+        state = AsyncData(
+          previous.copyWith(isProcessing: false, clearMessages: true),
+        );
         await refresh();
         state = switch (state) {
           AsyncData(:final value) => AsyncData(
-            value.copyWith(successMessage: 'Checked out successfully.'),
+            value.copyWith(
+              clearMessages: true,
+              successMessage: 'Checked out successfully.',
+            ),
           ),
           _ => state,
         };
       case Failure(:final error):
         state = AsyncData(
-          previous.copyWith(isProcessing: false, errorMessage: error.message),
+          previous.copyWith(
+            isProcessing: false,
+            clearMessages: true,
+            errorMessage: error.message,
+          ),
         );
     }
   }

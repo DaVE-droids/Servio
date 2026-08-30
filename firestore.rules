@@ -134,6 +134,7 @@ service cloud.firestore {
         'companySupervisorName',
         'companySupervisorPhone',
         'department',
+        'country',
         'state',
         'startDate',
         'endDate',
@@ -162,6 +163,7 @@ service cloud.firestore {
           'companySupervisorName',
           'companySupervisorPhone',
           'department',
+          'country',
           'state',
           'startDate',
           'endDate',
@@ -193,6 +195,7 @@ service cloud.firestore {
         && request.resource.data.companySupervisorName is string
         && request.resource.data.companySupervisorPhone is string
         && request.resource.data.department is string
+        && request.resource.data.country is string
         && request.resource.data.state is string
         && request.resource.data.startDate is timestamp
         && request.resource.data.endDate is timestamp

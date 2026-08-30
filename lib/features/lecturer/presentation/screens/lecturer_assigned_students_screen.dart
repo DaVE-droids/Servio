@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/enums/internship_status.dart';
+import '../../../../core/providers/firebase_providers.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
@@ -53,13 +55,13 @@ class LecturerAssignedStudentsScreen extends ConsumerWidget {
   }
 }
 
-class _AssignedStudentCard extends StatelessWidget {
+class _AssignedStudentCard extends ConsumerWidget {
   const _AssignedStudentCard({required this.internship});
 
   final InternshipModel internship;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
 
     return AppCard(
@@ -84,7 +86,7 @@ class _AssignedStudentCard extends StatelessWidget {
           Text(internship.companyAddress, style: textTheme.bodyMedium),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            '${internship.department} • ${internship.state}',
+            '${internship.department} • ${internship.state}, ${internship.country}',
             style: textTheme.bodySmall,
           ),
           Text(
@@ -94,6 +96,17 @@ class _AssignedStudentCard extends StatelessWidget {
           Text(
             'Supervisor: ${internship.companySupervisorName} • ${internship.companySupervisorPhone}',
             style: textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppButton(
+            label: 'Navigate',
+            variant: AppButtonVariant.secondary,
+            onPressed: () => ref
+                .read(mapsServiceProvider)
+                .launchNavigation(
+                  latitude: internship.companyLatitude,
+                  longitude: internship.companyLongitude,
+                ),
           ),
         ],
       ),

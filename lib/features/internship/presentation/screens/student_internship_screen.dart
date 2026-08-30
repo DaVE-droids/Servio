@@ -1,3 +1,4 @@
+import 'package:country_state_city/country_state_city.dart' as csc;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/enums/internship_status.dart';
+import '../../../../core/services/maps_service.dart';
+import '../../../../core/widgets/address_search_field.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_error_state.dart';
@@ -31,11 +34,26 @@ class _StudentInternshipScreenState
   final _companyAddressController = TextEditingController();
   final _supervisorNameController = TextEditingController();
   final _supervisorPhoneController = TextEditingController();
-  final _stateController = TextEditingController();
   final Map<String, String?> _errors = {};
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isReviewing = false;
+
+  List<csc.Country> _countries = [];
+  bool _countriesLoading = true;
+  csc.Country? _selectedCountry;
+
+  List<csc.State> _states = [];
+  bool _statesLoading = false;
+  csc.State? _selectedState;
+
+  AddressSuggestion? _selectedAddress;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountries();
+  }
 
   @override
   void dispose() {
@@ -43,8 +61,45 @@ class _StudentInternshipScreenState
     _companyAddressController.dispose();
     _supervisorNameController.dispose();
     _supervisorPhoneController.dispose();
-    _stateController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCountries() async {
+    final countries = await csc.getAllCountries();
+    if (!mounted) {
+      return;
+    }
+    csc.Country? nigeria;
+    for (final country in countries) {
+      if (country.isoCode == 'NG') {
+        nigeria = country;
+        break;
+      }
+    }
+    setState(() {
+      _countries = countries;
+      _countriesLoading = false;
+      _selectedCountry = nigeria;
+    });
+    if (nigeria != null) {
+      _loadStates(nigeria.isoCode);
+    }
+  }
+
+  Future<void> _loadStates(String countryIsoCode) async {
+    setState(() {
+      _statesLoading = true;
+      _states = [];
+      _selectedState = null;
+    });
+    final states = await csc.getStatesOfCountry(countryIsoCode);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _states = states;
+      _statesLoading = false;
+    });
   }
 
   @override
@@ -123,19 +178,66 @@ class _StudentInternshipScreenState
                 errorText: _errors['companyName'],
               ),
               const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Company Address',
-                controller: _companyAddressController,
-                enabled: !isSubmitting,
-                maxLines: 3,
-                errorText: _errors['companyAddress'],
+              DropdownButtonFormField<csc.Country>(
+                initialValue: _selectedCountry,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'Country',
+                  errorText: _errors['country'],
+                ),
+                items: _countries
+                    .map(
+                      (country) => DropdownMenuItem(
+                        value: country,
+                        child: Text(
+                          country.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isSubmitting || _countriesLoading
+                    ? null
+                    : (country) {
+                        setState(() {
+                          _selectedCountry = country;
+                          _selectedAddress = null;
+                        });
+                        if (country != null) {
+                          _loadStates(country.isoCode);
+                        }
+                      },
               ),
               const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'State',
-                controller: _stateController,
+              DropdownButtonFormField<csc.State>(
+                initialValue: _selectedState,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'State',
+                  errorText: _errors['state'],
+                  hintText: _statesLoading ? 'Loading states...' : null,
+                ),
+                items: _states
+                    .map(
+                      (state) => DropdownMenuItem(
+                        value: state,
+                        child: Text(state.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isSubmitting || _statesLoading
+                    ? null
+                    : (state) => setState(() => _selectedState = state),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AddressSearchField(
+                controller: _companyAddressController,
                 enabled: !isSubmitting,
-                errorText: _errors['state'],
+                errorText: _errors['companyAddress'],
+                countryCode: _selectedCountry?.isoCode,
+                onTextEdited: () => setState(() => _selectedAddress = null),
+                onSelected: (suggestion) =>
+                    setState(() => _selectedAddress = suggestion),
               ),
             ],
           ),
@@ -200,7 +302,11 @@ class _StudentInternshipScreenState
                 label: 'Address',
                 value: _companyAddressController.text,
               ),
-              _ReviewRow(label: 'State', value: _stateController.text),
+              _ReviewRow(
+                label: 'Country',
+                value: _selectedCountry?.name ?? '',
+              ),
+              _ReviewRow(label: 'State', value: _selectedState?.name ?? ''),
               _ReviewRow(
                 label: 'Supervisor',
                 value: _supervisorNameController.text,
@@ -249,15 +355,19 @@ class _StudentInternshipScreenState
       return;
     }
 
+    final selectedAddress = _selectedAddress!;
     final submitted = await ref
         .read(internshipControllerProvider.notifier)
         .submit(
           InternshipSubmissionRequest(
             companyName: _companyNameController.text,
             companyAddress: _companyAddressController.text,
+            companyLatitude: selectedAddress.latitude,
+            companyLongitude: selectedAddress.longitude,
             companySupervisorName: _supervisorNameController.text,
             companySupervisorPhone: _supervisorPhoneController.text,
-            state: _stateController.text,
+            country: _selectedCountry!.name,
+            state: _selectedState!.name,
             startDate: _startDate!,
             endDate: _endDate!,
           ),
@@ -273,11 +383,11 @@ class _StudentInternshipScreenState
         _companyNameController.text,
         'Company name',
       ),
-      'companyAddress': InternshipValidator.requiredText(
-        _companyAddressController.text,
-        'Company address',
-      ),
-      'state': InternshipValidator.requiredText(_stateController.text, 'State'),
+      'companyAddress': _selectedAddress == null
+          ? 'Please select an address from the suggestions.'
+          : null,
+      'country': _selectedCountry == null ? 'Country is required.' : null,
+      'state': _selectedState == null ? 'State is required.' : null,
       'supervisorName': InternshipValidator.requiredText(
         _supervisorNameController.text,
         'Company supervisor name',
@@ -351,6 +461,7 @@ class _SubmittedInternshipView extends StatelessWidget {
               Text(internship.companyAddress),
               const SizedBox(height: AppSpacing.sm),
               _ReviewRow(label: 'Status', value: internship.status.label),
+              _ReviewRow(label: 'Country', value: internship.country),
               _ReviewRow(label: 'State', value: internship.state),
               _ReviewRow(
                 label: 'Supervisor',

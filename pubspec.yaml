@@ -43,6 +43,9 @@ dependencies:
   go_router: ^17.0.0
   image_picker: ^1.2.1
   geocoding: ^5.0.0
+  country_state_city: ^0.1.6
+  http: ^1.6.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
