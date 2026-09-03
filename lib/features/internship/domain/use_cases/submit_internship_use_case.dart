@@ -16,11 +16,15 @@ class SubmitInternshipUseCase {
   /// Executes student placement submission.
   Future<Result<InternshipModel>> call({
     required String studentId,
+    required String studentName,
+    required String studentMatricNumber,
     required String department,
     required InternshipSubmissionRequest request,
   }) {
     return _repository.submitInternship(
       studentId: studentId,
+      studentName: studentName,
+      studentMatricNumber: studentMatricNumber,
       department: department,
       request: request,
     );

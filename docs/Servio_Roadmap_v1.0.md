@@ -41,10 +41,17 @@ Build out `lib/features/attendance/` (currently pure stub). Implement `checkIn()
 ### Phase 4 — Digital Logbook
 Build out `lib/features/logbook/`. One entry per working day (business rule, enforced client + repository + rules), editable until reviewed, lecturer approve/request-changes flow (DDS §5 logbook status: `pending → approved` / `changes_requested`). Reuses the `ProfilePhotoUploadRequest`-style pattern already established for attachments via Storage. Wire student `/logbook` (currently `StudentComingSoonScreen`) and a lecturer review queue.
 
-### Phase 5 — Supervision
+### Phase 5 — Supervision (built 2026-09-03)
 Build out `lib/features/supervision/`. Depends on Phase 2 (lecturer role) and Phase 1 (assignment). Visit report form (visit date/time, presence flags, observation, recommendations, 1–5 rating, optional photos) per DDS §5, `createReport()` immutable after submission. Wire `/lecturer/visit-reports`.
 
-**Hard prerequisite for this phase:** FR-SUP-003 requires "Navigate" to open the device's maps app using the company's *real* saved coordinates — meaningless with placeholder `(0.0, 0.0)` values. See "Known gap — company location capture" below; that is now resolved, and a first version of the Navigate button itself already exists (see below) ahead of the rest of this phase.
+**Built:** every MUST-HAVE requirement — FR-SUP-001 (assigned students list, from Phase 2), FR-SUP-002 (`LecturerStudentDetailScreen`), FR-SUP-003 (Navigate, built early alongside the location work), FR-SUP-004 (`LecturerVisitReportScreen`), FR-SUP-006 (report + audit event written as one batch). `supervision_reports` and `audit_events` rules plus a `supervision_reports` composite index are deployed. See `docs/CHANGELOG.md` for the deliberate scope cuts.
+
+**Still open from this phase:**
+- FR-SUP-005 (SHOULD HAVE) — visit photo upload. `photoUrls` exists on the model and passes rules validation, but nothing populates it; needs the Storage path (`supervision_photos/{reportId}/...`) that DDS §7 specifies and which `storage.rules` doesn't have yet.
+- `getReports()` / `getVisitSchedule()` from the ARS's `SupervisionRepository` method list — no FR-SUP requirement or UI slot maps to either yet.
+- The `users` read rule currently lets a lecturer read *any* student's profile, not only assigned ones (Firestore rules can't do the assignment lookup from that path). Tighten if it matters.
+
+**Hard prerequisite for this phase:** FR-SUP-003 requires "Navigate" to open the device's maps app using the company's *real* saved coordinates — meaningless with placeholder `(0.0, 0.0)` values. See "Known gap — company location capture" below; that is now resolved, and the Navigate button was built ahead of the rest of this phase.
 
 ### Known gap — company location capture (resolved)
 The PRD (§10, §17 Placement Module) and SAD (ADR-007) both call for company location to come from Google Maps — an address/coordinate picker, or geocoding a typed address — not manual coordinate entry. The original internship submission screen (built before this roadmap existed) shipped with two raw Latitude/Longitude text fields instead, which was unusable in practice and got removed during Phase 1 testing; a `(0.0, 0.0)` placeholder was submitted in its place as a stopgap.

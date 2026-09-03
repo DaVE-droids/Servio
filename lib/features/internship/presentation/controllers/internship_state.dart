@@ -38,10 +38,9 @@ class InternshipState {
     return InternshipState(
       currentInternship: currentInternship ?? this.currentInternship,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
-      successMessage: clearMessages
-          ? null
-          : successMessage ?? this.successMessage,
+      errorMessage: errorMessage ?? (clearMessages ? null : this.errorMessage),
+      successMessage:
+          successMessage ?? (clearMessages ? null : this.successMessage),
       lastLoadedAt: lastLoadedAt ?? this.lastLoadedAt,
     );
   }

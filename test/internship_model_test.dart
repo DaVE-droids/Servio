@@ -7,6 +7,8 @@ void main() {
     final internship = InternshipModel(
       internshipId: 'int-1',
       studentId: 'student-1',
+      studentName: 'David Adeyemi',
+      studentMatricNumber: 'CSC/2022/001',
       status: InternshipStatus.pendingReview,
       companyName: 'MTN Nigeria',
       companyAddress: 'Victoria Island, Lagos',
@@ -40,6 +42,8 @@ void main() {
     final internship = InternshipModel.fromJson({
       'internshipId': 'int-1',
       'studentId': 'student-1',
+      'studentName': 'David Adeyemi',
+      'studentMatricNumber': 'CSC/2022/001',
       'lecturerId': null,
       'coordinatorId': null,
       'status': 'approved',
@@ -71,6 +75,8 @@ void main() {
     final internship = InternshipModel(
       internshipId: 'int-1',
       studentId: 'student-1',
+      studentName: 'David Adeyemi',
+      studentMatricNumber: 'CSC/2022/001',
       coordinatorId: 'coordinator-1',
       status: InternshipStatus.rejected,
       companyName: 'MTN Nigeria',
@@ -104,6 +110,8 @@ void main() {
     final internship = InternshipModel(
       internshipId: 'int-1',
       studentId: 'student-1',
+      studentName: 'David Adeyemi',
+      studentMatricNumber: 'CSC/2022/001',
       coordinatorId: 'coordinator-1',
       lecturerId: 'lecturer-1',
       status: InternshipStatus.assigned,
@@ -140,6 +148,8 @@ void main() {
     final internship = InternshipModel(
       internshipId: 'int-1',
       studentId: 'student-1',
+      studentName: 'David Adeyemi',
+      studentMatricNumber: 'CSC/2022/001',
       coordinatorId: 'coordinator-1',
       lecturerId: 'lecturer-1',
       lecturerName: 'Dr. Samuel Johnson',

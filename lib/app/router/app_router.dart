@@ -15,13 +15,17 @@ import '../../features/coordinator/presentation/screens/coordinator_dashboard_sc
 import '../../features/dashboard/presentation/screens/student_coming_soon_screen.dart';
 import '../../features/dashboard/presentation/screens/student_dashboard_screen.dart';
 import '../../features/dashboard/presentation/widgets/student_app_shell.dart';
+import '../../features/internship/data/models/internship_model.dart';
 import '../../features/internship/presentation/screens/student_internship_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_assigned_students_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_attendance_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_dashboard_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_logbook_review_screen.dart';
+import '../../features/lecturer/presentation/screens/lecturer_student_detail_screen.dart';
 import '../../features/logbook/presentation/screens/student_logbook_screen.dart';
+import '../../features/profile/data/models/user_model.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/supervision/presentation/screens/lecturer_visit_report_screen.dart';
 import '../constants/app_routes.dart';
 import 'auth_redirects.dart';
 
@@ -229,10 +233,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return const LecturerAssignedStudentsScreen();
         },
       ),
-      _placeholder(
-        AppRoutes.visitReports,
-        'Visit Reports',
-        'Supervision visit report screens will live here.',
+      GoRoute(
+        path: AppRoutes.studentDetail,
+        builder: (context, state) {
+          if (session?.role != UserRole.lecturer) {
+            return const AuthenticatedPlaceholderScreen(
+              title: 'Student Detail',
+              description: 'Lecturer student detail will live here.',
+            );
+          }
+          final internship = state.extra as InternshipModel;
+          return LecturerStudentDetailScreen(internship: internship);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.visitReports,
+        builder: (context, state) {
+          if (session?.role != UserRole.lecturer) {
+            return const AuthenticatedPlaceholderScreen(
+              title: 'Visit Reports',
+              description: 'Supervision visit report screens will live here.',
+            );
+          }
+          final (internship, student) =
+              state.extra as (InternshipModel, UserModel);
+          return LecturerVisitReportScreen(
+            internship: internship,
+            student: student,
+          );
+        },
       ),
       _placeholder(
         AppRoutes.students,

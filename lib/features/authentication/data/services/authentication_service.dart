@@ -7,8 +7,15 @@ class AuthenticationService {
 
   final FirebaseAuth _firebaseAuth;
 
-  /// Emits Firebase authentication state changes for session persistence.
-  Stream<User?> authStateChanges() => _firebaseAuth.authStateChanges();
+  /// Emits Firebase user changes for session persistence.
+  ///
+  /// Deliberately `userChanges()`, not `authStateChanges()`. The latter only
+  /// fires on sign-in/sign-out, so an `emailVerified` flip after
+  /// [reloadCurrentUser] never reached the session stream — "I Have
+  /// Verified" appeared to do nothing until the app was killed and
+  /// relaunched. `userChanges()` covers sign-in/sign-out *and* profile and
+  /// token refreshes, so it's a superset of what this stream needs.
+  Stream<User?> authStateChanges() => _firebaseAuth.userChanges();
 
   /// Returns the current Firebase user, if one exists.
   User? get currentUser => _firebaseAuth.currentUser;

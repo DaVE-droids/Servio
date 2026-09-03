@@ -25,10 +25,9 @@ class AuthenticationState {
   }) {
     return AuthenticationState(
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
-      successMessage: clearMessages
-          ? null
-          : successMessage ?? this.successMessage,
+      errorMessage: errorMessage ?? (clearMessages ? null : this.errorMessage),
+      successMessage:
+          successMessage ?? (clearMessages ? null : this.successMessage),
     );
   }
 }

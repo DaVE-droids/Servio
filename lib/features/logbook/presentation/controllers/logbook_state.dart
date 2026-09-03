@@ -39,10 +39,9 @@ class LogbookState {
       today: today ?? this.today,
       history: history ?? this.history,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
-      successMessage: clearMessages
-          ? null
-          : successMessage ?? this.successMessage,
+      errorMessage: errorMessage ?? (clearMessages ? null : this.errorMessage),
+      successMessage:
+          successMessage ?? (clearMessages ? null : this.successMessage),
     );
   }
 }

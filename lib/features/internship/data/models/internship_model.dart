@@ -8,6 +8,8 @@ class InternshipModel {
   const InternshipModel({
     required this.internshipId,
     required this.studentId,
+    required this.studentName,
+    required this.studentMatricNumber,
     required this.status,
     required this.companyName,
     required this.companyAddress,
@@ -38,6 +40,16 @@ class InternshipModel {
 
   /// Student user ID.
   final String studentId;
+
+  /// Denormalized student name, copied from the profile at submission time
+  /// so lists can show who a placement belongs to without reading the
+  /// student's user document. Not in the DDS's denormalization table,
+  /// which covers attendance/logbook/supervision/notifications but not
+  /// internships — see docs/CHANGELOG.md.
+  final String studentName;
+
+  /// Denormalized student matric number, same reasoning as [studentName].
+  final String studentMatricNumber;
 
   /// Assigned lecturer ID, nullable until assigned.
   final String? lecturerId;
@@ -120,6 +132,8 @@ class InternshipModel {
     return InternshipModel(
       internshipId: json['internshipId'] as String,
       studentId: json['studentId'] as String,
+      studentName: json['studentName'] as String? ?? '',
+      studentMatricNumber: json['studentMatricNumber'] as String? ?? '',
       lecturerId: json['lecturerId'] as String?,
       lecturerName: json['lecturerName'] as String?,
       coordinatorId: json['coordinatorId'] as String?,
@@ -153,6 +167,8 @@ class InternshipModel {
     return {
       'internshipId': internshipId,
       'studentId': studentId,
+      'studentName': studentName,
+      'studentMatricNumber': studentMatricNumber,
       'lecturerId': lecturerId,
       'lecturerName': lecturerName,
       'coordinatorId': coordinatorId,
@@ -184,6 +200,8 @@ class InternshipModel {
     return InternshipModel(
       internshipId: internshipId,
       studentId: studentId,
+      studentName: studentName,
+      studentMatricNumber: studentMatricNumber,
       lecturerId: lecturerId,
       lecturerName: lecturerName,
       coordinatorId: coordinatorId,

@@ -50,10 +50,9 @@ class ProfileState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       isUploadingPhoto: isUploadingPhoto ?? this.isUploadingPhoto,
-      errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
-      successMessage: clearMessages
-          ? null
-          : successMessage ?? this.successMessage,
+      errorMessage: errorMessage ?? (clearMessages ? null : this.errorMessage),
+      successMessage:
+          successMessage ?? (clearMessages ? null : this.successMessage),
       lastLoadedAt: lastLoadedAt ?? this.lastLoadedAt,
     );
   }

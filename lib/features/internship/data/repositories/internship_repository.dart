@@ -44,6 +44,8 @@ class InternshipRepository {
   /// Submits a new student internship placement.
   Future<Result<InternshipModel>> submitInternship({
     required String studentId,
+    required String studentName,
+    required String studentMatricNumber,
     required String department,
     required InternshipSubmissionRequest request,
   }) async {
@@ -87,6 +89,8 @@ class InternshipRepository {
       final internship = InternshipModel(
         internshipId: internshipId,
         studentId: studentId,
+        studentName: studentName.trim(),
+        studentMatricNumber: studentMatricNumber.trim(),
         status: InternshipStatus.pendingReview,
         companyName: request.companyName.trim(),
         companyAddress: request.companyAddress.trim(),

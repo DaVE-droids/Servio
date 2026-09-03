@@ -39,10 +39,9 @@ class AttendanceState {
       today: today ?? this.today,
       history: history ?? this.history,
       isProcessing: isProcessing ?? this.isProcessing,
-      errorMessage: clearMessages ? null : errorMessage ?? this.errorMessage,
-      successMessage: clearMessages
-          ? null
-          : successMessage ?? this.successMessage,
+      errorMessage: errorMessage ?? (clearMessages ? null : this.errorMessage),
+      successMessage:
+          successMessage ?? (clearMessages ? null : this.successMessage),
     );
   }
 }

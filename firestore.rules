@@ -123,6 +123,8 @@ service cloud.firestore {
       return [
         'internshipId',
         'studentId',
+        'studentName',
+        'studentMatricNumber',
         'lecturerId',
         'lecturerName',
         'coordinatorId',
@@ -155,6 +157,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll([
           'internshipId',
           'studentId',
+          'studentName',
+          'studentMatricNumber',
           'status',
           'companyName',
           'companyAddress',
@@ -182,6 +186,8 @@ service cloud.firestore {
         && request.resource.data.assignedAt == null
         && request.resource.data.activatedAt == null
         && request.resource.data.completedAt == null
+        && request.resource.data.studentName is string
+        && request.resource.data.studentMatricNumber is string
         && request.resource.data.companyName is string
         && request.resource.data.companyAddress is string
         && (
@@ -448,8 +454,119 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
+    function isLecturerAssignedToInternship(internshipId, lecturerId) {
+      return exists(/databases/$(database)/documents/internships/$(internshipId))
+        && get(/databases/$(database)/documents/internships/$(internshipId)).data.lecturerId
+          == lecturerId;
+    }
+
+    function supervisionReportFields() {
+      return [
+        'reportId',
+        'internshipId',
+        'lecturerId',
+        'lecturerName',
+        'studentId',
+        'studentName',
+        'studentMatricNumber',
+        'companyName',
+        'state',
+        'visitDate',
+        'studentPresent',
+        'companyRepresentativePresent',
+        'observation',
+        'recommendations',
+        'rating',
+        'photoUrls',
+        'createdAt'
+      ];
+    }
+
+    // BR-SUP-001/002/003: only the assigned lecturer may create a report,
+    // linked to exactly one internship, and reports are immutable — there
+    // is no corresponding update/delete rule below.
+    function isValidSupervisionReportCreate(reportId) {
+      return isLecturerUser()
+        && request.resource.data.keys().hasOnly(supervisionReportFields())
+        && request.resource.data.keys().hasAll(supervisionReportFields())
+        && request.resource.data.reportId == reportId
+        && request.resource.data.lecturerId == request.auth.uid
+        && isLecturerAssignedToInternship(
+          request.resource.data.internshipId,
+          request.auth.uid
+        )
+        && request.resource.data.lecturerName is string
+        && request.resource.data.studentId is string
+        && request.resource.data.studentName is string
+        && request.resource.data.studentMatricNumber is string
+        && request.resource.data.companyName is string
+        && request.resource.data.state is string
+        && request.resource.data.visitDate is timestamp
+        && request.resource.data.studentPresent is bool
+        && request.resource.data.companyRepresentativePresent is bool
+        && request.resource.data.observation is string
+        && request.resource.data.recommendations is string
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.photoUrls is list
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    function auditEventFields() {
+      return [
+        'eventId',
+        'actorId',
+        'actorName',
+        'actorRole',
+        'action',
+        'entityType',
+        'entityId',
+        'targetUserId',
+        'description',
+        'metadata',
+        'createdAt'
+      ];
+    }
+
+    // Kept general (any signed-in user, any action) rather than scoped to
+    // one feature, since every future write path (Phase 7's audit retrofit)
+    // needs this exact same shape — an actor recording their own action.
+    function isValidAuditEventCreate(eventId) {
+      return isSignedIn()
+        && request.resource.data.keys().hasOnly(auditEventFields())
+        && request.resource.data.keys().hasAll([
+          'eventId',
+          'actorId',
+          'actorName',
+          'actorRole',
+          'action',
+          'entityType',
+          'entityId',
+          'description',
+          'createdAt'
+        ])
+        && request.resource.data.eventId == eventId
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.actorName is string
+        && request.resource.data.actorRole is string
+        && request.resource.data.action is string
+        && request.resource.data.entityType is string
+        && request.resource.data.entityId is string
+        && request.resource.data.description is string
+        && request.resource.data.createdAt is timestamp;
+    }
+
     match /users/{userId} {
-      allow get: if isOwner(userId) || isCoordinator();
+      // Lecturers need student profiles for FR-SUP-002 (student name,
+      // matric number, and contact details on the student detail screen).
+      // This is deliberately "any student", not "only my assigned
+      // students": rules can't express the assignment check here, since
+      // that lives on an internships document this rule has no queryable
+      // path to (rules support get()/exists() by known ID, not queries).
+      allow get: if isOwner(userId)
+        || isCoordinator()
+        || (isLecturerUser() && resource.data.role == 'student');
       allow list: if isCoordinator();
       allow create: if isValidStudentProfileCreate(userId);
       allow update: if isOwner(userId)
@@ -511,6 +628,27 @@ service cloud.firestore {
     allow create: if isValidLogbookCreate();
     allow update: if isValidLogbookStudentEdit() || isValidLogbookLecturerReview();
     allow delete: if false;
+  }
+
+  match /supervision_reports/{reportId} {
+    // Report IDs are auto-generated (not deterministic/guessable the way
+    // attendance/logbook daily IDs are), so there's no "lookup a
+    // not-yet-created doc" case here — no !exists() branch needed.
+    allow get, list: if (isStudent() && resource.data.studentId == request.auth.uid)
+      || (isLecturerUser() && resource.data.lecturerId == request.auth.uid)
+      || isCoordinator();
+    allow create: if isValidSupervisionReportCreate(reportId);
+    allow update, delete: if false;
+  }
+
+  match /audit_events/{eventId} {
+    // Per the DDS: only coordinators see all events; a lecturer sees only
+    // events they themselves performed (their own submitted reports,
+    // etc.); students have no access to this collection at all.
+    allow get, list: if isCoordinator()
+      || (isLecturerUser() && resource.data.actorId == request.auth.uid);
+    allow create: if isValidAuditEventCreate(eventId);
+    allow update, delete: if false;
   }
 
     match /{document=**} {

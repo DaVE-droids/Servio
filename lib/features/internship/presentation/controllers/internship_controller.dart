@@ -79,7 +79,13 @@ class InternshipController extends AsyncNotifier<InternshipState> {
 
     final result = await ref
         .read(submitInternshipUseCaseProvider)
-        .call(studentId: uid, department: profile.department, request: request);
+        .call(
+          studentId: uid,
+          studentName: '${profile.firstName} ${profile.lastName}',
+          studentMatricNumber: profile.matricNumber ?? '',
+          department: profile.department,
+          request: request,
+        );
 
     switch (result) {
       case Success<InternshipModel>(:final data):

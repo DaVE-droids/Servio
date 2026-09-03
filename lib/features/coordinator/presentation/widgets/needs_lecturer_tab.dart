@@ -143,7 +143,7 @@ class _NeedsLecturerCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            'Student ID: ${internship.studentId}',
+            _studentLabel(internship),
             style: textTheme.bodySmall,
           ),
           if (internship.approvedAt != null)
@@ -161,4 +161,20 @@ class _NeedsLecturerCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Shows the student's name, falling back to their matric number and then
+/// their raw ID for placements submitted before the name was denormalized
+/// onto `internships`.
+String _studentLabel(InternshipModel internship) {
+  if (internship.studentName.isNotEmpty) {
+    final matric = internship.studentMatricNumber;
+    return matric.isEmpty
+        ? internship.studentName
+        : '${internship.studentName} • $matric';
+  }
+  if (internship.studentMatricNumber.isNotEmpty) {
+    return internship.studentMatricNumber;
+  }
+  return 'Student ${internship.studentId}';
 }

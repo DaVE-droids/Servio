@@ -35,6 +35,7 @@ abstract final class AuthRedirects {
       UserRole.lecturer => {
         AppRoutes.lecturerDashboard,
         AppRoutes.assignedStudents,
+        AppRoutes.studentDetail,
         AppRoutes.visitReports,
         AppRoutes.logbook,
         AppRoutes.attendance,

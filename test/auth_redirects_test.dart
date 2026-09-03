@@ -83,6 +83,20 @@ void main() {
         ),
         isTrue,
       );
+      expect(
+        AuthRedirects.isRouteAllowedForRole(
+          AppRoutes.studentDetail,
+          UserRole.lecturer,
+        ),
+        isTrue,
+      );
+      expect(
+        AuthRedirects.isRouteAllowedForRole(
+          AppRoutes.visitReports,
+          UserRole.lecturer,
+        ),
+        isTrue,
+      );
     });
   });
 }

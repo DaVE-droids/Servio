@@ -48,6 +48,9 @@ abstract final class AppRoutes {
   /// Lecturer visit reports route.
   static const visitReports = '/lecturer/visit-reports';
 
+  /// Lecturer student detail route (FR-SUP-002).
+  static const studentDetail = '/lecturer/student-detail';
+
   /// Coordinator students route.
   static const students = '/coordinator/students';
 
