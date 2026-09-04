@@ -83,7 +83,7 @@ class _NeedsLecturerTabState extends ConsumerState<NeedsLecturerTab> {
     final result = await ref
         .read(approvedInternshipsProvider.notifier)
         .assignLecturer(
-          internshipId: internship.internshipId,
+          internship: internship,
           lecturerId: lecturer.uid,
           lecturerName: '${lecturer.firstName} ${lecturer.lastName}',
         );

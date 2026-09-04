@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import 'ready_to_start_provider.dart';
 
 /// Manages approved internships awaiting lecturer assignment.
@@ -20,15 +21,23 @@ class ApprovedInternshipsController
   }
 
   Future<Result<void>> assignLecturer({
-    required String internshipId,
+    required InternshipModel internship,
     required String lecturerId,
     required String lecturerName,
   }) async {
     final repository = ref.read(internshipRepositoryProvider);
+    final coordinator = switch (ref.read(profileControllerProvider)) {
+      AsyncData(:final value) => value.user,
+      _ => null,
+    };
     final result = await repository.assignLecturer(
-      internshipId: internshipId,
+      internship: internship,
       lecturerId: lecturerId,
       lecturerName: lecturerName,
+      coordinatorId: coordinator?.uid ?? '',
+      coordinatorName: coordinator == null
+          ? 'Your coordinator'
+          : '${coordinator.firstName} ${coordinator.lastName}',
     );
 
     if (result is Success<void>) {

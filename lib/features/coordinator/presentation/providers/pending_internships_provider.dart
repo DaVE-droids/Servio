@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import 'approved_internships_provider.dart';
 
 class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> {
@@ -17,11 +18,15 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
     };
   }
 
-  Future<Result<void>> approve(String internshipId, String coordinatorId) async {
+  Future<Result<void>> approve(
+    InternshipModel internship,
+    String coordinatorId,
+  ) async {
     final repository = ref.read(internshipRepositoryProvider);
     final result = await repository.approveInternship(
-      internshipId: internshipId,
+      internship: internship,
       coordinatorId: coordinatorId,
+      coordinatorName: _coordinatorName(),
     );
 
     if (result is Success<void>) {
@@ -34,17 +39,33 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
     return result;
   }
 
-  Future<Result<void>> reject(String internshipId, String coordinatorId) async {
+  Future<Result<void>> reject(
+    InternshipModel internship,
+    String coordinatorId,
+  ) async {
     final repository = ref.read(internshipRepositoryProvider);
     final result = await repository.rejectInternship(
-      internshipId: internshipId,
+      internship: internship,
       coordinatorId: coordinatorId,
+      coordinatorName: _coordinatorName(),
     );
 
     if (result is Success<void>) {
       ref.invalidateSelf(); // triggers build() to run again, refreshing the list
     }
     return result;
+  }
+
+  /// The signed-in coordinator's display name, denormalized onto the
+  /// notifications they trigger so the student sees who acted.
+  String _coordinatorName() {
+    final user = switch (ref.read(profileControllerProvider)) {
+      AsyncData(:final value) => value.user,
+      _ => null,
+    };
+    return user == null
+        ? 'Your coordinator'
+        : '${user.firstName} ${user.lastName}';
   }
 }
 

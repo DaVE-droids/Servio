@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../../../../core/enums/internship_status.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../notifications/domain/notification_factory.dart';
 import '../models/internship_model.dart';
 import '../models/internship_submission_request.dart';
 import '../services/internship_service.dart';
@@ -159,15 +160,27 @@ class InternshipRepository {
     }
   }
 
-  /// Approves a pending internship placement.
+  /// Approves a pending internship placement and notifies the student.
   Future<Result<void>> approveInternship({
-    required String internshipId,
+    required InternshipModel internship,
     required String coordinatorId,
+    required String coordinatorName,
   }) async {
     try {
       await _service.approveInternship(
-        internshipId: internshipId,
+        internshipId: internship.internshipId,
         coordinatorId: coordinatorId,
+        notifications: [
+          NotificationFactory.placementApproved(
+            notificationId: _service.createNotificationId(),
+            studentId: internship.studentId,
+            internshipId: internship.internshipId,
+            companyName: internship.companyName,
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            createdAt: DateTime.now().toUtc(),
+          ).toJson(),
+        ],
       );
       return const Success(null);
     } on FirebaseException catch (error) {
@@ -177,15 +190,27 @@ class InternshipRepository {
     }
   }
 
-  /// Rejects a pending internship placement.
+  /// Rejects a pending internship placement and notifies the student.
   Future<Result<void>> rejectInternship({
-    required String internshipId,
+    required InternshipModel internship,
     required String coordinatorId,
+    required String coordinatorName,
   }) async {
     try {
       await _service.rejectInternship(
-        internshipId: internshipId,
+        internshipId: internship.internshipId,
         coordinatorId: coordinatorId,
+        notifications: [
+          NotificationFactory.placementRejected(
+            notificationId: _service.createNotificationId(),
+            studentId: internship.studentId,
+            internshipId: internship.internshipId,
+            companyName: internship.companyName,
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            createdAt: DateTime.now().toUtc(),
+          ).toJson(),
+        ],
       );
       return const Success(null);
     } on FirebaseException catch (error) {
@@ -259,17 +284,44 @@ class InternshipRepository {
     }
   }
 
-  /// Assigns a lecturer to an approved internship.
+  /// Assigns a lecturer to an approved internship, notifying both the
+  /// student and the newly assigned lecturer.
   Future<Result<void>> assignLecturer({
-    required String internshipId,
+    required InternshipModel internship,
     required String lecturerId,
     required String lecturerName,
+    required String coordinatorId,
+    required String coordinatorName,
   }) async {
     try {
+      final now = DateTime.now().toUtc();
       await _service.assignLecturer(
-        internshipId: internshipId,
+        internshipId: internship.internshipId,
         lecturerId: lecturerId,
         lecturerName: lecturerName,
+        notifications: [
+          NotificationFactory.lecturerAssignedToStudent(
+            notificationId: _service.createNotificationId(),
+            studentId: internship.studentId,
+            internshipId: internship.internshipId,
+            lecturerName: lecturerName,
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            createdAt: now,
+          ).toJson(),
+          NotificationFactory.studentAssignedToLecturer(
+            notificationId: _service.createNotificationId(),
+            lecturerId: lecturerId,
+            internshipId: internship.internshipId,
+            studentName: internship.studentName.isEmpty
+                ? 'a student'
+                : internship.studentName,
+            companyName: internship.companyName,
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            createdAt: now,
+          ).toJson(),
+        ],
       );
       return const Success(null);
     } on FirebaseException catch (error) {

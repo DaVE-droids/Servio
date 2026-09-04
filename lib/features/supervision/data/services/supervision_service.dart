@@ -24,6 +24,7 @@ class SupervisionService {
   Future<void> createReport({
     required Map<String, dynamic> reportData,
     required Map<String, dynamic> auditEventData,
+    List<Map<String, dynamic>> notifications = const [],
   }) {
     final reportId = reportData['reportId'] as String;
     final auditEventId = auditEventData['eventId'] as String;
@@ -37,7 +38,20 @@ class SupervisionService {
       _firestore.collection('audit_events').doc(auditEventId),
       auditEventData,
     );
+    for (final notification in notifications) {
+      batch.set(
+        _firestore
+            .collection('notifications')
+            .doc(notification['notificationId'] as String),
+        notification,
+      );
+    }
     return batch.commit();
+  }
+
+  /// Creates a new notification document ID.
+  String createNotificationId() {
+    return _firestore.collection('notifications').doc().id;
   }
 
   /// Returns every report this lecturer has submitted, most recent visit

@@ -74,7 +74,7 @@ class _LecturerLogbookReviewScreenState
 
     final result = await ref
         .read(pendingLogbookReviewsProvider.notifier)
-        .approve(entry.entryId);
+        .approve(entry);
 
     if (!mounted) {
       return;
@@ -97,7 +97,7 @@ class _LecturerLogbookReviewScreenState
 
     final result = await ref
         .read(pendingLogbookReviewsProvider.notifier)
-        .requestChanges(entryId: entry.entryId, comments: comments);
+        .requestChanges(entry: entry, comments: comments);
 
     if (!mounted) {
       return;

@@ -25,10 +25,10 @@ class PendingLogbookReviewsController
   }
 
   /// Approves an entry, locking it.
-  Future<Result<void>> approve(String entryId) async {
+  Future<Result<void>> approve(LogbookEntryModel entry) async {
     final result = await ref
         .read(reviewLogbookEntryUseCaseProvider)
-        .approve(entryId);
+        .approve(entry);
     if (result is Success<void>) {
       ref.invalidateSelf();
     }
@@ -37,12 +37,12 @@ class PendingLogbookReviewsController
 
   /// Requests changes on an entry, keeping it editable.
   Future<Result<void>> requestChanges({
-    required String entryId,
+    required LogbookEntryModel entry,
     required String comments,
   }) async {
     final result = await ref
         .read(reviewLogbookEntryUseCaseProvider)
-        .requestChanges(entryId: entryId, comments: comments);
+        .requestChanges(entry: entry, comments: comments);
     if (result is Success<void>) {
       ref.invalidateSelf();
     }

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
 import '../../../audit/data/models/audit_event_model.dart';
+import '../../../notifications/domain/notification_factory.dart';
 import '../models/supervision_report_model.dart';
 import '../models/supervision_report_request.dart';
 import '../services/supervision_service.dart';
@@ -67,6 +68,17 @@ class SupervisionRepository {
       await _service.createReport(
         reportData: report.toJson(),
         auditEventData: auditEvent.toJson(),
+        notifications: [
+          NotificationFactory.supervisionReportSubmitted(
+            notificationId: _service.createNotificationId(),
+            studentId: studentId,
+            reportId: reportId,
+            lecturerId: lecturerId,
+            lecturerName: lecturerName,
+            visitDate: request.visitDate,
+            createdAt: now,
+          ).toJson(),
+        ],
       );
       return Success(report);
     } on FirebaseException catch (error) {

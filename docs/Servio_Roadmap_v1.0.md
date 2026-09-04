@@ -64,7 +64,13 @@ The PRD (§10, §17 Placement Module) and SAD (ADR-007) both call for company lo
 
 **Related gap found in Phase 3 (Attendance):** check-in/check-out GPS capture (`checkInLatitude`/`checkInLongitude`/etc. on `AttendanceModel`) has the same problem — no `geolocator` dependency, no platform permission config, fields present in the schema but never populated. A real fix needs the `geolocator` package, `NSLocationWhenInUseUsageDescription` in `Info.plist`, Android location permissions, and an NFR-PRIV-003-compliant "why we're asking" screen before the OS permission prompt. Separate from the company-location gap above (that's Maps/geocoding for a fixed address; this is live device GPS at the moment of check-in), but likely worth tackling together given the overlapping permission/package setup.
 
-### Phase 6 — Notifications (in-app + push)
+### Phase 6 — Notifications (in-app built 2026-09-03; push blocked on Blaze)
+
+**Built:** the full in-app half — `notifications` collection, list screen with unread count and mark-as-read, and notification writes retrofitted into all five existing actions (placement approve/reject, lecturer assignment, logbook review, visit report), each inside the action's own batch. Rules and indexes deployed.
+
+**Not built — and not buildable on Spark:** actual push delivery. Sending an FCM message requires a server (Cloud Functions → Blaze); a client can only receive. When Blaze is enabled, a function triggering on `notifications` document creation can fan out to the recipient's device token — the data model already carries what it would need. See `docs/CHANGELOG.md`.
+
+**Original plan:**
 Build out `lib/features/notifications/`, replacing the stub. This is cross-cutting — every write path from Phases 0–5 above should already be calling into it once it exists (internship approval, lecturer assignment, logbook review, etc., per ARS §19 application-service pattern). Implement `NotificationService` (currently empty in `lib/core/services/`) against `firebase_messaging`, and the Firestore-backed in-app list. Retrofit notification-triggering into the repositories built in earlier phases as part of their batched writes (ARS §9's "Approve Internship → update + notify + activity + audit, single batch" pattern) — this is intentionally sequenced last so it isn't rebuilt repeatedly as each business action is added.
 
 ### Phase 7 — Activity Feed & Audit Trail

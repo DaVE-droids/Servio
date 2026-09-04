@@ -513,6 +513,60 @@ service cloud.firestore {
         && request.resource.data.createdAt is timestamp;
     }
 
+    function notificationFields() {
+      return [
+        'notificationId',
+        'recipientId',
+        'recipientRole',
+        'senderId',
+        'senderName',
+        'title',
+        'message',
+        'type',
+        'relatedEntityId',
+        'relatedEntityType',
+        'isRead',
+        'createdAt'
+      ];
+    }
+
+    // Notifications are written as part of the action they describe (an
+    // approval, a review, a visit report), so any signed-in actor may
+    // create one for another user — but never for themselves, and never
+    // pre-read. The action's own rule is what gates whether the batch
+    // commits at all.
+    function isValidNotificationCreate(notificationId) {
+      return isSignedIn()
+        && request.resource.data.keys().hasOnly(notificationFields())
+        && request.resource.data.keys().hasAll([
+          'notificationId',
+          'recipientId',
+          'recipientRole',
+          'title',
+          'message',
+          'type',
+          'isRead',
+          'createdAt'
+        ])
+        && request.resource.data.notificationId == notificationId
+        && request.resource.data.recipientId is string
+        && request.resource.data.recipientRole is string
+        && request.resource.data.title is string
+        && request.resource.data.message is string
+        && request.resource.data.type is string
+        && request.resource.data.isRead == false
+        && request.resource.data.createdAt is timestamp;
+    }
+
+    // The DDS allows exactly one mutation: the recipient marking it read.
+    function isValidNotificationRead() {
+      return isSignedIn()
+        && resource.data.recipientId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isRead'])
+        && request.resource.data.isRead == true;
+    }
+
     function auditEventFields() {
       return [
         'eventId',
@@ -639,6 +693,15 @@ service cloud.firestore {
       || isCoordinator();
     allow create: if isValidSupervisionReportCreate(reportId);
     allow update, delete: if false;
+  }
+
+  match /notifications/{notificationId} {
+    // Users see only their own notifications (DDS business rule).
+    allow get, list: if isSignedIn()
+      && resource.data.recipientId == request.auth.uid;
+    allow create: if isValidNotificationCreate(notificationId);
+    allow update: if isValidNotificationRead();
+    allow delete: if false;
   }
 
   match /audit_events/{eventId} {

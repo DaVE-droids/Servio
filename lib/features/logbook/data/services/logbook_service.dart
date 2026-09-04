@@ -27,14 +27,36 @@ class LogbookService {
 
   /// Updates specific fields on an existing entry (lecturer review, or a
   /// student resubmission after changes were requested).
+  ///
+  /// [notifications] are written in the same batch, so a student can never
+  /// be told their entry was reviewed unless the review itself committed.
+  /// Each entry must carry its own `notificationId`.
   Future<void> updateEntry({
     required String documentId,
     required Map<String, dynamic> updates,
+    List<Map<String, dynamic>> notifications = const [],
   }) {
-    return _firestore
-        .collection('logbook_entries')
-        .doc(documentId)
-        .update(updates);
+    final entryRef = _firestore.collection('logbook_entries').doc(documentId);
+    if (notifications.isEmpty) {
+      return entryRef.update(updates);
+    }
+
+    final batch = _firestore.batch();
+    batch.update(entryRef, updates);
+    for (final notification in notifications) {
+      batch.set(
+        _firestore
+            .collection('notifications')
+            .doc(notification['notificationId'] as String),
+        notification,
+      );
+    }
+    return batch.commit();
+  }
+
+  /// Creates a new notification document ID.
+  String createNotificationId() {
+    return _firestore.collection('notifications').doc().id;
   }
 
   /// Returns a specific entry by ID, if it exists.

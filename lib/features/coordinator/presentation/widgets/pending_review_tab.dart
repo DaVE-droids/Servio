@@ -81,7 +81,7 @@ class _PendingReviewTabState extends ConsumerState<PendingReviewTab> {
       internship.internshipId,
       () => ref
           .read(pendingInternshipsProvider.notifier)
-          .approve(internship.internshipId, coordinatorId),
+          .approve(internship, coordinatorId),
       successMessage: 'Placement approved.',
     );
   }
@@ -109,7 +109,7 @@ class _PendingReviewTabState extends ConsumerState<PendingReviewTab> {
       internship.internshipId,
       () => ref
           .read(pendingInternshipsProvider.notifier)
-          .reject(internship.internshipId, coordinatorId),
+          .reject(internship, coordinatorId),
       successMessage: 'Placement rejected.',
     );
   }

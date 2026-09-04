@@ -12,7 +12,6 @@ import '../../features/authentication/presentation/screens/register_screen.dart'
 import '../../features/authentication/presentation/widgets/authenticated_placeholder_screen.dart';
 import '../../features/attendance/presentation/screens/student_attendance_screen.dart';
 import '../../features/coordinator/presentation/screens/coordinator_dashboard_screen.dart';
-import '../../features/dashboard/presentation/screens/student_coming_soon_screen.dart';
 import '../../features/dashboard/presentation/screens/student_dashboard_screen.dart';
 import '../../features/dashboard/presentation/widgets/student_app_shell.dart';
 import '../../features/internship/data/models/internship_model.dart';
@@ -23,6 +22,7 @@ import '../../features/lecturer/presentation/screens/lecturer_dashboard_screen.d
 import '../../features/lecturer/presentation/screens/lecturer_logbook_review_screen.dart';
 import '../../features/lecturer/presentation/screens/lecturer_student_detail_screen.dart';
 import '../../features/logbook/presentation/screens/student_logbook_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/data/models/user_model.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/supervision/presentation/screens/lecturer_visit_report_screen.dart';
@@ -178,23 +178,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.notifications,
         pageBuilder: (context, state) {
           if (session?.role != UserRole.student) {
-            return NoTransitionPage(
-              child: const AuthenticatedPlaceholderScreen(
-                title: 'Notifications',
-                description:
-                    'Notification list and read states will live here.',
-              ),
-            );
+            // Reached via push() from a non-student dashboard, not a tab
+            // switch, so this keeps the default "drilling in" transition.
+            return MaterialPage(child: const NotificationsScreen());
           }
           return NoTransitionPage(
             child: _studentShell(
               path: state.uri.path,
               title: 'Notifications',
-              child: const StudentComingSoonScreen(
-                title: 'Notifications Coming Soon',
-                message:
-                    'Placement alerts, attendance reminders, and logbook updates will appear here.',
-              ),
+              child: const NotificationsScreen(showScaffold: false),
             ),
           );
         },

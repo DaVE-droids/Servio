@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/enums/logbook_status.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../notifications/domain/notification_factory.dart';
 import '../models/logbook_entry_model.dart';
 import '../models/logbook_entry_request.dart';
 import '../services/logbook_service.dart';
@@ -79,15 +80,26 @@ class LogbookRepository {
   }
 
   /// Approves a pending entry, locking it.
-  Future<Result<void>> approveEntry(String entryId) async {
+  Future<Result<void>> approveEntry(LogbookEntryModel entry) async {
     try {
-      final now = Timestamp.fromDate(DateTime.now().toUtc());
+      final now = DateTime.now().toUtc();
       await _service.updateEntry(
-        documentId: entryId,
+        documentId: entry.entryId,
         updates: {
           'status': LogbookStatus.approved.firestoreValue,
-          'updatedAt': now,
+          'updatedAt': Timestamp.fromDate(now),
         },
+        notifications: [
+          NotificationFactory.logbookApproved(
+            notificationId: _service.createNotificationId(),
+            studentId: entry.studentId,
+            entryId: entry.entryId,
+            lecturerId: entry.lecturerId,
+            lecturerName: entry.lecturerName,
+            entryDate: entry.date,
+            createdAt: now,
+          ).toJson(),
+        ],
       );
       return const Success(null);
     } on FirebaseException catch (error) {
@@ -99,18 +111,29 @@ class LogbookRepository {
 
   /// Requests changes on a pending entry, keeping it editable.
   Future<Result<void>> requestChanges({
-    required String entryId,
+    required LogbookEntryModel entry,
     required String comments,
   }) async {
     try {
-      final now = Timestamp.fromDate(DateTime.now().toUtc());
+      final now = DateTime.now().toUtc();
       await _service.updateEntry(
-        documentId: entryId,
+        documentId: entry.entryId,
         updates: {
           'status': LogbookStatus.changesRequested.firestoreValue,
           'lecturerComments': comments,
-          'updatedAt': now,
+          'updatedAt': Timestamp.fromDate(now),
         },
+        notifications: [
+          NotificationFactory.logbookChangesRequested(
+            notificationId: _service.createNotificationId(),
+            studentId: entry.studentId,
+            entryId: entry.entryId,
+            lecturerId: entry.lecturerId,
+            lecturerName: entry.lecturerName,
+            entryDate: entry.date,
+            createdAt: now,
+          ).toJson(),
+        ],
       );
       return const Success(null);
     } on FirebaseException catch (error) {
