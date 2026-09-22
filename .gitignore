@@ -52,3 +52,7 @@ scripts/*-account.json
 scripts/node_modules/
 scripts/seed-output.json
 scripts/servio-account.json
+# Firebase CLI debug output
+firepit-log.txt
+firebase-debug.log
+firestore-debug.log
