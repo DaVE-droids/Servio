@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
-import '../../../profile/presentation/providers/profile_providers.dart';
 import 'approved_internships_provider.dart';
+import 'coordinator_identity.dart';
+import 'coordinator_overview_provider.dart';
 
 class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> {
   @override
@@ -26,7 +27,7 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
     final result = await repository.approveInternship(
       internship: internship,
       coordinatorId: coordinatorId,
-      coordinatorName: _coordinatorName(),
+      coordinatorName: await _coordinatorName(),
     );
 
     if (result is Success<void>) {
@@ -35,6 +36,8 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
       // that list — a separate provider, fetched independently — needs to
       // pick it up too, not just this one.
       ref.invalidate(approvedInternshipsProvider);
+      // Students, Lecturers, and Reports read the shared overview.
+      ref.invalidate(coordinatorOverviewProvider);
     }
     return result;
   }
@@ -47,26 +50,20 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
     final result = await repository.rejectInternship(
       internship: internship,
       coordinatorId: coordinatorId,
-      coordinatorName: _coordinatorName(),
+      coordinatorName: await _coordinatorName(),
     );
 
     if (result is Success<void>) {
       ref.invalidateSelf(); // triggers build() to run again, refreshing the list
+      ref.invalidate(coordinatorOverviewProvider);
     }
     return result;
   }
 
   /// The signed-in coordinator's display name, denormalized onto the
-  /// notifications they trigger so the student sees who acted.
-  String _coordinatorName() {
-    final user = switch (ref.read(profileControllerProvider)) {
-      AsyncData(:final value) => value.user,
-      _ => null,
-    };
-    return user == null
-        ? 'Your coordinator'
-        : '${user.firstName} ${user.lastName}';
-  }
+  /// notifications and audit events they trigger so both name who acted.
+  Future<String> _coordinatorName() async =>
+      (await readCoordinatorIdentity(ref))?.name ?? 'A coordinator';
 }
 
 final pendingInternshipsProvider =

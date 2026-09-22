@@ -42,9 +42,18 @@ class _AssignLecturerDialogState extends ConsumerState<AssignLecturerDialog> {
           error: (error, stackTrace) => const Text(
             'Unable to load lecturers. Please try again.',
           ),
-          data: (lecturers) {
+          data: (allLecturers) {
+            // Only approved lecturers can supervise; the security rules
+            // reject an assignment to an unapproved one anyway, so offering
+            // them here would only produce a permission error.
+            final lecturers = allLecturers
+                .where((lecturer) => lecturer.isActive)
+                .toList();
             if (lecturers.isEmpty) {
-              return const Text('No lecturers are available to assign yet.');
+              return const Text(
+                'No approved lecturers yet. Approve lecturers from the '
+                'Lecturers section first.',
+              );
             }
             return DropdownButtonFormField<UserModel>(
               initialValue: _selectedLecturer,

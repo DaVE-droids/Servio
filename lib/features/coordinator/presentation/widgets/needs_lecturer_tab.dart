@@ -13,6 +13,7 @@ import '../../../internship/data/models/internship_model.dart';
 import '../../../profile/data/models/user_model.dart';
 import '../providers/approved_internships_provider.dart';
 import 'assign_lecturer_dialog.dart';
+import 'coordinator_ui.dart';
 import 'pending_review_tab.dart' show formatShortDate;
 
 /// Coordinator dashboard tab listing approved placements that still need a
@@ -122,29 +123,12 @@ class _NeedsLecturerCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  internship.companyName,
-                  style: textTheme.titleMedium,
-                ),
-              ),
-              const AppStatusChip(
-                label: 'Approved',
-                type: AppStatusChipType.success,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            '${internship.department} • ${internship.state}',
-            style: textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            _studentLabel(internship),
-            style: textTheme.bodySmall,
+          PlacementCardHeader(
+            internship: internship,
+            chip: const AppStatusChip(
+              label: 'Approved',
+              type: AppStatusChipType.success,
+            ),
           ),
           if (internship.approvedAt != null)
             Text(
@@ -161,20 +145,4 @@ class _NeedsLecturerCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Shows the student's name, falling back to their matric number and then
-/// their raw ID for placements submitted before the name was denormalized
-/// onto `internships`.
-String _studentLabel(InternshipModel internship) {
-  if (internship.studentName.isNotEmpty) {
-    final matric = internship.studentMatricNumber;
-    return matric.isEmpty
-        ? internship.studentName
-        : '${internship.studentName} • $matric';
-  }
-  if (internship.studentMatricNumber.isNotEmpty) {
-    return internship.studentMatricNumber;
-  }
-  return 'Student ${internship.studentId}';
 }

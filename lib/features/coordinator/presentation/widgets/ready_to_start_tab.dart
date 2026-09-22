@@ -9,8 +9,10 @@ import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_status_chip.dart';
+import '../../../authentication/presentation/providers/authentication_providers.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../providers/ready_to_start_provider.dart';
+import 'coordinator_ui.dart';
 import 'pending_review_tab.dart' show formatShortDate;
 
 /// Coordinator dashboard tab listing placements with a lecturer assigned
@@ -29,6 +31,10 @@ class _ReadyToStartTabState extends ConsumerState<ReadyToStartTab> {
   @override
   Widget build(BuildContext context) {
     final readyToStartValue = ref.watch(readyToStartProvider);
+    final coordinatorId = switch (ref.watch(authSessionProvider)) {
+      AsyncData(:final value) => value.firebaseUser?.uid,
+      _ => null,
+    };
 
     return readyToStartValue.when(
       loading: () => const AppLoading(message: 'Loading placements...'),
@@ -56,7 +62,9 @@ class _ReadyToStartTabState extends ConsumerState<ReadyToStartTab> {
               return _ReadyToStartCard(
                 internship: internship,
                 isProcessing: _processingIds.contains(internship.internshipId),
-                onActivate: () => _activate(internship),
+                onActivate: coordinatorId == null
+                    ? null
+                    : () => _activate(internship, coordinatorId),
               );
             },
           ),
@@ -65,12 +73,15 @@ class _ReadyToStartTabState extends ConsumerState<ReadyToStartTab> {
     );
   }
 
-  Future<void> _activate(InternshipModel internship) async {
+  Future<void> _activate(
+    InternshipModel internship,
+    String coordinatorId,
+  ) async {
     setState(() => _processingIds.add(internship.internshipId));
 
     final result = await ref
         .read(readyToStartProvider.notifier)
-        .activate(internship.internshipId);
+        .activate(internship, coordinatorId);
 
     if (!mounted) {
       return;
@@ -96,7 +107,7 @@ class _ReadyToStartCard extends StatelessWidget {
 
   final InternshipModel internship;
   final bool isProcessing;
-  final VoidCallback onActivate;
+  final VoidCallback? onActivate;
 
   @override
   Widget build(BuildContext context) {
@@ -106,28 +117,16 @@ class _ReadyToStartCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  internship.companyName,
-                  style: textTheme.titleMedium,
-                ),
-              ),
-              const AppStatusChip(
-                label: 'Assigned',
-                type: AppStatusChipType.info,
-              ),
-            ],
+          PlacementCardHeader(
+            internship: internship,
+            chip: const AppStatusChip(
+              label: 'Assigned',
+              type: AppStatusChipType.info,
+            ),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            '${internship.department} • ${internship.state}',
-            style: textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Lecturer: ${internship.lecturerName ?? internship.lecturerId}',
+            'Lecturer: ${internship.lecturerName ?? 'Name not recorded'}',
             style: textTheme.bodySmall,
           ),
           if (internship.assignedAt != null)

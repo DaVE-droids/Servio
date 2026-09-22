@@ -3,15 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/enums/user_role.dart';
-import '../../core/widgets/placeholder_screen.dart';
+import '../../features/authentication/data/models/auth_session.dart';
 import '../../features/authentication/presentation/providers/authentication_providers.dart';
 import '../../features/authentication/presentation/screens/email_verification_screen.dart';
 import '../../features/authentication/presentation/screens/forgot_password_screen.dart';
 import '../../features/authentication/presentation/screens/login_screen.dart';
+import '../../features/authentication/presentation/screens/pending_approval_screen.dart';
 import '../../features/authentication/presentation/screens/register_screen.dart';
+import '../../features/authentication/presentation/screens/splash_screen.dart';
 import '../../features/authentication/presentation/widgets/authenticated_placeholder_screen.dart';
 import '../../features/attendance/presentation/screens/student_attendance_screen.dart';
+import '../../features/audit/presentation/screens/coordinator_audit_screen.dart';
 import '../../features/coordinator/presentation/screens/coordinator_dashboard_screen.dart';
+import '../../features/coordinator/presentation/screens/coordinator_lecturer_detail_screen.dart';
+import '../../features/coordinator/presentation/screens/coordinator_lecturers_screen.dart';
+import '../../features/coordinator/presentation/screens/coordinator_reports_screen.dart';
+import '../../features/coordinator/presentation/screens/coordinator_student_detail_screen.dart';
+import '../../features/coordinator/presentation/screens/coordinator_students_screen.dart';
+import '../../features/coordinator/presentation/widgets/coordinator_app_shell.dart';
 import '../../features/dashboard/presentation/screens/student_dashboard_screen.dart';
 import '../../features/dashboard/presentation/widgets/student_app_shell.dart';
 import '../../features/internship/data/models/internship_model.dart';
@@ -50,11 +59,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => const PlaceholderScreen(
-          title: 'Servio',
-          description:
-              'Application startup and authentication checks will live here.',
-        ),
+        builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -71,6 +76,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.verification,
         builder: (context, state) => const EmailVerificationScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.pendingApproval,
+        builder: (context, state) => const PendingApprovalScreen(),
       ),
       GoRoute(
         path: AppRoutes.studentDashboard,
@@ -95,18 +104,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return const LecturerDashboardScreen();
         },
       ),
-      GoRoute(
+      // Coordinator sections share one shell. NoTransitionPage because
+      // switching sections is a tab change, not drilling in.
+      _coordinatorSection(
+        session: session,
         path: AppRoutes.coordinatorDashboard,
-        builder: (context, state) {
-          if (session?.role != UserRole.coordinator) {
-            return const AuthenticatedPlaceholderScreen(
-              title: 'Coordinator Dashboard',
-              description:
-                  'Coordinator administrative summaries will be added later.',
-            );
-          }
-          return const CoordinatorDashboardScreen();
-        },
+        title: 'Placements',
+        child: const CoordinatorDashboardScreen(),
+      ),
+      _coordinatorSection(
+        session: session,
+        path: AppRoutes.students,
+        title: 'Students',
+        child: const CoordinatorStudentsScreen(),
+      ),
+      _coordinatorSection(
+        session: session,
+        path: AppRoutes.lecturers,
+        title: 'Lecturers',
+        child: const CoordinatorLecturersScreen(),
+      ),
+      _coordinatorSection(
+        session: session,
+        path: AppRoutes.reports,
+        title: 'Reports',
+        child: const CoordinatorReportsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.coordinatorStudentDetailPattern,
+        builder: (context, state) => CoordinatorStudentDetailScreen(
+          studentId: state.pathParameters['studentId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.coordinatorLecturerDetailPattern,
+        builder: (context, state) => CoordinatorLecturerDetailScreen(
+          lecturerId: state.pathParameters['lecturerId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.internship,
@@ -208,11 +242,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      _placeholder(
-        AppRoutes.settings,
-        'Settings',
-        'Application settings will live here.',
-      ),
       GoRoute(
         path: AppRoutes.assignedStudents,
         builder: (context, state) {
@@ -255,20 +284,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      _placeholder(
-        AppRoutes.students,
-        'Students',
-        'Coordinator student management screens will live here.',
-      ),
-      _placeholder(
-        AppRoutes.lecturers,
-        'Lecturers',
-        'Coordinator lecturer management screens will live here.',
-      ),
-      _placeholder(
-        AppRoutes.reports,
-        'Reports',
-        'Coordinator report placeholders will live here.',
+      GoRoute(
+        path: AppRoutes.audit,
+        builder: (context, state) {
+          if (session?.role != UserRole.coordinator) {
+            return const AuthenticatedPlaceholderScreen(
+              title: 'Audit History',
+              description: 'Audit history is available to coordinators.',
+            );
+          }
+          return const CoordinatorAuditScreen();
+        },
       ),
     ],
   );
@@ -282,10 +308,29 @@ Widget _studentShell({
   return StudentAppShell(currentPath: path, title: title, child: child);
 }
 
-GoRoute _placeholder(String path, String title, String description) {
+/// A top-level coordinator section wrapped in the coordinator shell.
+///
+/// The role check is a fallback only — [AuthRedirects] already keeps other
+/// roles off `/coordinator/...` paths before this builder runs.
+GoRoute _coordinatorSection({
+  required AuthSession? session,
+  required String path,
+  required String title,
+  required Widget child,
+}) {
   return GoRoute(
     path: path,
-    builder: (context, state) =>
-        AuthenticatedPlaceholderScreen(title: title, description: description),
+    pageBuilder: (context, state) => NoTransitionPage(
+      child: session?.role != UserRole.coordinator
+          ? AuthenticatedPlaceholderScreen(
+              title: title,
+              description: 'This section is available to coordinators.',
+            )
+          : CoordinatorAppShell(
+              currentPath: state.uri.path,
+              title: title,
+              child: child,
+            ),
+    ),
   );
 }
