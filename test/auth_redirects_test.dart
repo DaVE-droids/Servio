@@ -7,6 +7,56 @@ import 'package:servio/features/authentication/data/models/auth_session.dart';
 /// Tests authentication guards and role-based route permissions.
 void main() {
   group('AuthRedirects', () {
+    test('flags only unapproved lecturers as awaiting approval', () {
+      const session = AuthSession(
+        firebaseUser: null,
+        isEmailVerified: true,
+        role: UserRole.lecturer,
+        isActive: false,
+      );
+      expect(session.isAwaitingApproval, isTrue);
+      // firebaseUser is null here, so the session reads as signed out; the
+      // approval flag itself is what the router keys on once signed in.
+      const activeLecturer = AuthSession(
+        firebaseUser: null,
+        isEmailVerified: true,
+        role: UserRole.lecturer,
+      );
+      expect(activeLecturer.isAwaitingApproval, isFalse);
+      const inactiveStudent = AuthSession(
+        firebaseUser: null,
+        isEmailVerified: true,
+        role: UserRole.student,
+        isActive: false,
+      );
+      expect(
+        inactiveStudent.isAwaitingApproval,
+        isFalse,
+        reason: 'only lecturers go through coordinator approval',
+      );
+    });
+
+    test('allows coordinator detail pages that carry an ID in the path', () {
+      expect(
+        AuthRedirects.isRouteAllowedForRole(
+          AppRoutes.coordinatorStudentDetail('abc123'),
+          UserRole.coordinator,
+        ),
+        isTrue,
+      );
+      expect(
+        AuthRedirects.isRouteAllowedForRole(
+          AppRoutes.coordinatorLecturerDetail('abc123'),
+          UserRole.lecturer,
+        ),
+        isFalse,
+      );
+      expect(
+        AuthRedirects.isRouteAllowedForRole(AppRoutes.reports, UserRole.student),
+        isFalse,
+      );
+    });
+
     test('keeps loading users on splash', () {
       expect(
         AuthRedirects.redirectFor(

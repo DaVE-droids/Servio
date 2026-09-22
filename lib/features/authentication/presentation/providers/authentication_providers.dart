@@ -6,7 +6,7 @@ import '../../data/repositories/authentication_repository.dart';
 import '../../data/services/authentication_service.dart';
 import '../../domain/use_cases/login_use_case.dart';
 import '../../domain/use_cases/logout_use_case.dart';
-import '../../domain/use_cases/register_student_use_case.dart';
+import '../../domain/use_cases/register_use_case.dart';
 import '../../domain/use_cases/reload_current_user_use_case.dart';
 import '../../domain/use_cases/send_password_reset_use_case.dart';
 import '../../domain/use_cases/send_verification_email_use_case.dart';
@@ -34,8 +34,8 @@ final loginUseCaseProvider = Provider<LoginUseCase>((ref) {
 });
 
 /// Provides the register student use case.
-final registerStudentUseCaseProvider = Provider<RegisterStudentUseCase>((ref) {
-  return RegisterStudentUseCase(ref.watch(authenticationRepositoryProvider));
+final registerUseCaseProvider = Provider<RegisterUseCase>((ref) {
+  return RegisterUseCase(ref.watch(authenticationRepositoryProvider));
 });
 
 /// Provides the password reset use case.

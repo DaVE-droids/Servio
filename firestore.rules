@@ -85,6 +85,50 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
+    // Lecturers register themselves, but always start inactive — they have
+    // no lecturer permissions until a coordinator approves them (see
+    // isLecturerUser and isValidLecturerAccessChange). Mirrors the student
+    // rule, with a staff ID required instead of a matric number.
+    function isValidLecturerProfileCreate(userId) {
+      return isOwner(userId)
+        && request.resource.data.keys().hasOnly(userFields())
+        && request.resource.data.keys().hasAll([
+          'uid',
+          'firstName',
+          'lastName',
+          'email',
+          'role',
+          'department',
+          'staffId',
+          'isEmailVerified',
+          'isActive',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'lecturer'
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.isActive == false
+        && request.resource.data.isEmailVerified == request.auth.token.email_verified
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
+        && request.resource.data.department is string
+        && request.resource.data.staffId is string
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    // A coordinator approving (or deactivating) a lecturer account: only
+    // isActive and updatedAt may change, and only on a lecturer's document.
+    function isValidLecturerAccessChange() {
+      return isCoordinator()
+        && resource.data.role == 'lecturer'
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isActive', 'updatedAt'])
+        && request.resource.data.isActive is bool
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     function isValidProfileUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(studentEditableProfileFields())
@@ -217,10 +261,16 @@ service cloud.firestore {
         && signedInUserRole() == 'coordinator';
     }
 
+    // A lecturer only has lecturer powers once a coordinator has approved
+    // the account (isActive == true). Lecturers self-register with
+    // isActive false, so without this check anyone could sign up as a
+    // "lecturer" and immediately read student records. Every lecturer
+    // permission in this file goes through this one function.
     function isLecturerUser() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && signedInUserRole() == 'lecturer';
+        && signedInUserRole() == 'lecturer'
+        && signedInUser().data.isActive == true;
     }
 
     function isValidCoordinatorApproval() {
@@ -246,7 +296,9 @@ service cloud.firestore {
     function isLecturer(lecturerId) {
       return exists(/databases/$(database)/documents/users/$(lecturerId))
         && get(/databases/$(database)/documents/users/$(lecturerId)).data.role
-          == 'lecturer';
+          == 'lecturer'
+        && get(/databases/$(database)/documents/users/$(lecturerId)).data.isActive
+          == true;
     }
 
     function isValidCoordinatorAssignment() {
@@ -454,6 +506,15 @@ service cloud.firestore {
         && request.resource.data.updatedAt is timestamp;
     }
 
+    function isValidCoordinatorCompletion() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'completedAt', 'updatedAt'])
+        && resource.data.status == 'active'
+        && request.resource.data.status == 'completed'
+        && request.resource.data.completedAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
     function isLecturerAssignedToInternship(internshipId, lecturerId) {
       return exists(/databases/$(database)/documents/internships/$(internshipId))
         && get(/databases/$(database)/documents/internships/$(internshipId)).data.lecturerId
@@ -622,12 +683,14 @@ service cloud.firestore {
         || isCoordinator()
         || (isLecturerUser() && resource.data.role == 'student');
       allow list: if isCoordinator();
-      allow create: if isValidStudentProfileCreate(userId);
-      allow update: if isOwner(userId)
+      allow create: if isValidStudentProfileCreate(userId)
+        || isValidLecturerProfileCreate(userId);
+      allow update: if (isOwner(userId)
         && (
           isValidProfileUpdate()
           || isValidEmailVerificationUpdate()
-        );
+        ))
+        || isValidLecturerAccessChange();
       allow delete: if false;
     }
 
@@ -642,6 +705,7 @@ service cloud.firestore {
         || isValidCoordinatorRejection()
         || isValidCoordinatorAssignment()
         || isValidCoordinatorActivation()
+        || isValidCoordinatorCompletion()
       );
     allow delete: if false;
   }

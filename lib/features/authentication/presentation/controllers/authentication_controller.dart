@@ -13,7 +13,7 @@ class AuthenticationController extends Notifier<AuthenticationState> {
 
   /// Registers a student account.
   Future<bool> register(RegisterRequest request) {
-    return _run(() => ref.read(registerStudentUseCaseProvider).call(request));
+    return _run(() => ref.read(registerUseCaseProvider).call(request));
   }
 
   /// Logs in with email/password.

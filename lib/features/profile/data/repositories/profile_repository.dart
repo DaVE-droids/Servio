@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../audit/domain/audit_event_factory.dart';
+import '../../../notifications/domain/notification_factory.dart';
 import '../models/profile_photo_upload_request.dart';
 import '../models/profile_update_request.dart';
 import '../models/user_model.dart';
@@ -174,25 +176,84 @@ class ProfileRepository {
     }
   }
 
-  /// Returns all lecturers, sorted by name, for coordinator assignment.
+  /// Returns all lecturers — approved and awaiting approval — sorted by
+  /// name. Callers that assign students must use only active ones.
   Future<Result<List<UserModel>>> getLecturers() async {
     try {
       final snapshot = await _profileService.getLecturers();
       final lecturers = snapshot.docs
           .map((doc) => UserModel.fromJson(doc.data()))
           .toList()
-        ..sort((a, b) {
-          final lastNameComparison = a.lastName.compareTo(b.lastName);
-          return lastNameComparison != 0
-              ? lastNameComparison
-              : a.firstName.compareTo(b.firstName);
-        });
+        ..sort(_byName);
       return Success(lecturers);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));
     } catch (error) {
       return Failure(_unknownFailure(error));
     }
+  }
+
+  /// Returns all students, sorted by name (coordinator only).
+  Future<Result<List<UserModel>>> getStudents() async {
+    try {
+      final snapshot = await _profileService.getStudents();
+      final students = snapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .toList()
+        ..sort(_byName);
+      return Success(students);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  /// Approves ([isActive] true) or deactivates a lecturer account. Approval
+  /// also notifies the lecturer; both directions are audited.
+  Future<Result<void>> setLecturerActive({
+    required UserModel lecturer,
+    required bool isActive,
+    required String coordinatorId,
+    required String coordinatorName,
+  }) async {
+    try {
+      final now = DateTime.now().toUtc();
+      await _profileService.setUserActive(
+        uid: lecturer.uid,
+        isActive: isActive,
+        auditEvent: AuditEventFactory.lecturerAccessChanged(
+          eventId: _profileService.newId('audit_events'),
+          coordinatorId: coordinatorId,
+          coordinatorName: coordinatorName,
+          lecturerId: lecturer.uid,
+          lecturerName: '${lecturer.firstName} ${lecturer.lastName}',
+          isActive: isActive,
+          createdAt: now,
+        ).toJson(),
+        notification: isActive
+            ? NotificationFactory.lecturerAccountApproved(
+                notificationId: _profileService.newId('notifications'),
+                lecturerId: lecturer.uid,
+                coordinatorId: coordinatorId,
+                coordinatorName: coordinatorName,
+                createdAt: now,
+              ).toJson()
+            : null,
+      );
+      return const Success(null);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  static int _byName(UserModel a, UserModel b) {
+    final lastNameComparison = a.lastName.compareTo(b.lastName);
+    return lastNameComparison != 0
+        ? lastNameComparison
+        : a.firstName.compareTo(b.firstName);
   }
 
   AppFailure _mapAuthException(FirebaseAuthException error) {

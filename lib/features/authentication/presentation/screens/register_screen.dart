@@ -4,13 +4,18 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/enums/user_role.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../data/models/auth_requests.dart';
 import '../../domain/auth_validator.dart';
 import '../providers/authentication_providers.dart';
 
-/// Student email/password registration screen.
+/// Email/password registration for students and lecturers.
+///
+/// Lecturer accounts are created inactive and must be approved by a
+/// coordinator before they can do anything; the form says so up front so a
+/// lecturer isn't surprised by the "awaiting approval" screen afterwards.
 class RegisterScreen extends ConsumerStatefulWidget {
   /// Creates a registration screen.
   const RegisterScreen({super.key});
@@ -28,6 +33,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _matricNumberController = TextEditingController();
   final _phoneController = TextEditingController();
   final _facultyController = TextEditingController();
+  var _role = UserRole.student;
+
+  bool get _isLecturer => _role == UserRole.lecturer;
   final Map<String, String?> _errors = {};
 
   @override
@@ -65,9 +73,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               Text(
-                'Student Registration',
+                'Create your account',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
+              const SizedBox(height: AppSpacing.md),
+              SegmentedButton<UserRole>(
+                segments: const [
+                  ButtonSegment(
+                    value: UserRole.student,
+                    label: Text('Student'),
+                    icon: Icon(Icons.school_outlined),
+                  ),
+                  ButtonSegment(
+                    value: UserRole.lecturer,
+                    label: Text('Lecturer'),
+                    icon: Icon(Icons.badge_outlined),
+                  ),
+                ],
+                selected: {_role},
+                onSelectionChanged: (selection) => setState(() {
+                  _role = selection.first;
+                  _errors.remove('matricNumber');
+                }),
+              ),
+              if (_isLecturer) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Lecturer accounts are reviewed by a coordinator before '
+                  'they can be used. You will be able to sign in, and your '
+                  'access starts once you are approved.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               AppTextField(
                 label: 'First Name',
@@ -103,7 +140,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               AppTextField(
-                label: 'Matric Number',
+                label: _isLecturer ? 'Staff ID' : 'Matric Number',
                 controller: _matricNumberController,
                 errorText: _errors['matricNumber'],
               ),
@@ -149,7 +186,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
       'matricNumber': AuthValidator.required(
         _matricNumberController.text,
-        'Matric number',
+        _isLecturer ? 'Staff ID' : 'Matric number',
       ),
     };
     setState(
@@ -170,7 +207,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             email: _emailController.text,
             password: _passwordController.text,
             department: _departmentController.text,
-            matricNumber: _matricNumberController.text,
+            idNumber: _matricNumberController.text,
+            role: _role,
             phoneNumber: _phoneController.text.trim().isEmpty
                 ? null
                 : _phoneController.text,

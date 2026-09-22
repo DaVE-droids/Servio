@@ -29,6 +29,49 @@ class ProfileService {
         .get();
   }
 
+  /// Returns all users with the student role (coordinator only — the
+  /// `users` list rule grants listing to coordinators alone).
+  Future<QuerySnapshot<Map<String, dynamic>>> getStudents() {
+    return _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'student')
+        .get();
+  }
+
+  /// Approves or deactivates an account, writing the audit event and any
+  /// notification in the same batch so neither can exist without the
+  /// change itself.
+  Future<void> setUserActive({
+    required String uid,
+    required bool isActive,
+    required Map<String, dynamic> auditEvent,
+    Map<String, dynamic>? notification,
+  }) {
+    final batch = _firestore.batch();
+    batch.update(_firestore.collection('users').doc(uid), {
+      'isActive': isActive,
+      'updatedAt': Timestamp.fromDate(DateTime.now().toUtc()),
+    });
+    batch.set(
+      _firestore
+          .collection('audit_events')
+          .doc(auditEvent['eventId'] as String),
+      auditEvent,
+    );
+    if (notification != null) {
+      batch.set(
+        _firestore
+            .collection('notifications')
+            .doc(notification['notificationId'] as String),
+        notification,
+      );
+    }
+    return batch.commit();
+  }
+
+  /// Creates a new document ID in [collection] without writing anything.
+  String newId(String collection) => _firestore.collection(collection).doc().id;
+
   /// Uploads profile photo bytes and returns a download URL.
   Future<String> uploadProfilePhoto({
     required String uid,
