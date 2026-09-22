@@ -62,11 +62,21 @@ const _locationIqAccessToken = String.fromEnvironment(
 class MapsService {
   /// Creates a maps service.
   MapsService({geocoding.Geocoding? geocoder, http.Client? httpClient})
-    : _geocoder = geocoder ?? geocoding.Geocoding(),
+    : _injectedGeocoder = geocoder,
       _httpClient = httpClient ?? http.Client();
 
-  final geocoding.Geocoding _geocoder;
+  final geocoding.Geocoding? _injectedGeocoder;
   final http.Client _httpClient;
+
+  /// The on-device geocoder, created only on first use.
+  ///
+  /// Created lazily — and never in a browser — because the `geocoding`
+  /// plugin has no web implementation: merely constructing it throws on
+  /// web. It used to be built in this constructor, which crashed the whole
+  /// service in the web app and took address search down with it, even
+  /// though address search doesn't use the geocoder at all.
+  late final geocoding.Geocoding _geocoder =
+      _injectedGeocoder ?? geocoding.Geocoding();
 
   /// Resolves a free-text address into coordinates.
   Future<Result<GeocodedLocation>> geocodeAddress(String address) async {
@@ -76,6 +86,18 @@ class MapsService {
         AppFailure(
           message: 'Company address is required to resolve its location.',
           type: FailureType.validation,
+        ),
+      );
+    }
+
+    if (kIsWeb) {
+      // No on-device geocoder exists in a browser. Callers on web should use
+      // [searchAddress], whose suggestions already carry coordinates.
+      return const Failure(
+        AppFailure(
+          message: 'Please pick the company address from the suggestions.',
+          type: FailureType.validation,
+          code: 'geocoding-unsupported-on-web',
         ),
       );
     }

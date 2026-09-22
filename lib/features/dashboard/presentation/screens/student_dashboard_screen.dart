@@ -6,6 +6,7 @@ import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/enums/internship_status.dart';
+import '../../../../core/enums/logbook_status.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
@@ -16,6 +17,10 @@ import '../../../attendance/presentation/controllers/attendance_state.dart';
 import '../../../attendance/presentation/providers/attendance_providers.dart';
 import '../../../internship/presentation/controllers/internship_state.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
+import '../../../logbook/presentation/controllers/logbook_state.dart';
+import '../../../logbook/presentation/providers/logbook_providers.dart';
+import '../../../notifications/presentation/controllers/notifications_state.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../profile/data/models/user_model.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
@@ -29,6 +34,8 @@ class StudentDashboardScreen extends ConsumerWidget {
     final profileValue = ref.watch(profileControllerProvider);
     final internshipValue = ref.watch(internshipControllerProvider);
     final attendanceValue = ref.watch(attendanceControllerProvider);
+    final logbookValue = ref.watch(logbookControllerProvider);
+    final notificationsValue = ref.watch(notificationsControllerProvider);
 
     return profileValue.when(
       loading: () => const AppLoading(message: 'Loading dashboard...'),
@@ -61,33 +68,10 @@ class StudentDashboardScreen extends ConsumerWidget {
               _DashboardGrid(
                 internshipValue: internshipValue,
                 attendanceValue: attendanceValue,
+                logbookValue: logbookValue,
               ),
               const SizedBox(height: AppSpacing.md),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.notifications_outlined,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          'Recent Notifications',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'No notifications yet. Important placement, attendance, and logbook updates will appear here.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
+              _RecentNotificationsCard(value: notificationsValue),
               const SizedBox(height: AppSpacing.md),
               AppCard(
                 child: Column(
@@ -124,10 +108,12 @@ class _DashboardGrid extends StatelessWidget {
   const _DashboardGrid({
     required this.internshipValue,
     required this.attendanceValue,
+    required this.logbookValue,
   });
 
   final AsyncValue<InternshipState> internshipValue;
   final AsyncValue<AttendanceState> attendanceValue;
+  final AsyncValue<LogbookState> logbookValue;
 
   /// Fixed card height. Chosen to comfortably fit an icon/title row, a
   /// value line, a two-line description, and an optional action button —
@@ -147,14 +133,7 @@ class _DashboardGrid extends StatelessWidget {
         final cards = [
           _internshipCard(context),
           _attendanceCard(context),
-          const DashboardSummaryCard(
-            title: 'Pending Logbook',
-            value: 'Coming soon',
-            description:
-                'Daily logbook reminders will appear here in the logbook phase.',
-            icon: Icons.menu_book_outlined,
-            color: AppColors.secondary,
-          ),
+          _logbookCard(context),
         ];
         return GridView.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -191,10 +170,17 @@ class _DashboardGrid extends StatelessWidget {
       data: (state) {
         final today = state.today;
         if (today == null) {
+          final isActive = switch (internshipValue) {
+            AsyncData(:final value) =>
+              value.currentInternship?.status == InternshipStatus.active,
+            _ => false,
+          };
           return DashboardSummaryCard(
             title: "Today's Attendance",
             value: 'Not checked in',
-            description: 'Check in once your internship is active.',
+            description: isActive
+                ? "You haven't checked in today."
+                : 'Check in once your internship is active.',
             icon: Icons.fact_check_outlined,
             color: AppColors.warning,
             actionLabel: 'View',
@@ -212,6 +198,81 @@ class _DashboardGrid extends StatelessWidget {
           color: checkedOut ? AppColors.success : AppColors.information,
           actionLabel: 'View',
           onActionPressed: () => context.go(AppRoutes.attendance),
+        );
+      },
+    );
+  }
+
+  /// Today's logbook entry at a glance, so a student sees what's still
+  /// outstanding without opening the logbook tab.
+  Widget _logbookCard(BuildContext context) {
+    const title = "Today's Logbook";
+    const icon = Icons.menu_book_outlined;
+    final isActive = switch (internshipValue) {
+      AsyncData(:final value) =>
+        value.currentInternship?.status == InternshipStatus.active,
+      _ => false,
+    };
+    if (!isActive) {
+      return const DashboardSummaryCard(
+        title: title,
+        value: 'Not open yet',
+        description: 'Your logbook opens once your internship is active.',
+        icon: icon,
+        color: AppColors.secondary,
+      );
+    }
+
+    return logbookValue.when(
+      loading: () => const DashboardSummaryCard(
+        title: title,
+        value: 'Loading...',
+        description: "Checking today's entry.",
+        icon: icon,
+        color: AppColors.information,
+      ),
+      error: (error, stackTrace) => const DashboardSummaryCard(
+        title: title,
+        value: 'Unavailable',
+        description: 'Unable to load your logbook right now.',
+        icon: icon,
+        color: AppColors.error,
+      ),
+      data: (state) {
+        final (value, description, color, action) = switch (state.today?.status) {
+          null => (
+            'Not written yet',
+            "Record what you did today before you finish.",
+            AppColors.warning,
+            'Write Entry',
+          ),
+          LogbookStatus.pending => (
+            'Awaiting review',
+            'Your lecturer has not reviewed today\'s entry yet.',
+            AppColors.information,
+            'View',
+          ),
+          LogbookStatus.changesRequested => (
+            'Changes requested',
+            'Your lecturer asked you to update this entry.',
+            AppColors.warning,
+            'Edit Entry',
+          ),
+          LogbookStatus.approved => (
+            'Approved',
+            "Today's entry has been approved.",
+            AppColors.success,
+            'View',
+          ),
+        };
+        return DashboardSummaryCard(
+          title: title,
+          value: value,
+          description: description,
+          icon: icon,
+          color: color,
+          actionLabel: action,
+          onActionPressed: () => context.go(AppRoutes.logbook),
         );
       },
     );
@@ -294,6 +355,103 @@ class _DashboardHeader extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
+    );
+  }
+}
+
+/// The student's three most recent notifications, with a way to see the
+/// rest. Unread ones are shown in bold with a dot.
+class _RecentNotificationsCard extends StatelessWidget {
+  const _RecentNotificationsCard({required this.value});
+
+  final AsyncValue<NotificationsState> value;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final notifications = switch (value) {
+      AsyncData(:final value) => value.notifications,
+      _ => null,
+    };
+    final recent = notifications?.take(3).toList() ?? const [];
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.notifications_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text('Recent Notifications', style: textTheme.titleMedium),
+              ),
+              if (recent.isNotEmpty)
+                TextButton(
+                  onPressed: () => context.go(AppRoutes.notifications),
+                  child: const Text('View all'),
+                ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          if (notifications == null)
+            Text('Loading notifications...', style: textTheme.bodyMedium)
+          else if (recent.isEmpty)
+            Text(
+              'No notifications yet. Updates about your placement, logbook, '
+              'and supervision visits will appear here.',
+              style: textTheme.bodyMedium,
+            )
+          else
+            for (final notification in recent)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: notification.isRead
+                              ? Colors.transparent
+                              : AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            notification.title,
+                            style: textTheme.bodyMedium?.copyWith(
+                              fontWeight: notification.isRead
+                                  ? FontWeight.w400
+                                  : FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            notification.message,
+                            style: textTheme.bodySmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
     );
   }
 }

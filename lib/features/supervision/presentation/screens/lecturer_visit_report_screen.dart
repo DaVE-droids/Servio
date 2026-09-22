@@ -296,6 +296,9 @@ class _RatingSelector extends StatelessWidget {
           final rating = index + 1;
           return Expanded(
             child: IconButton(
+              // Without a tooltip a screen reader announces five identical
+              // unlabeled "buttons"; this also gives each star a name.
+              tooltip: 'Rate $rating out of 5',
               onPressed: () => onChanged(rating),
               icon: Icon(
                 value != null && rating <= value!
