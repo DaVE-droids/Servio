@@ -73,14 +73,37 @@ The PRD (§10, §17 Placement Module) and SAD (ADR-007) both call for company lo
 **Original plan:**
 Build out `lib/features/notifications/`, replacing the stub. This is cross-cutting — every write path from Phases 0–5 above should already be calling into it once it exists (internship approval, lecturer assignment, logbook review, etc., per ARS §19 application-service pattern). Implement `NotificationService` (currently empty in `lib/core/services/`) against `firebase_messaging`, and the Firestore-backed in-app list. Retrofit notification-triggering into the repositories built in earlier phases as part of their batched writes (ARS §9's "Approve Internship → update + notify + activity + audit, single batch" pattern) — this is intentionally sequenced last so it isn't rebuilt repeatedly as each business action is added.
 
-### Phase 7 — Activity Feed & Audit Trail
+### Phase 7 — Audit Trail & Activity History (built 2026-09-07)
+
+**Built:** audit events retrofitted into all twelve write paths (placement submitted/approved/rejected, lecturer assigned, internship activated, logbook created/edited/approved/changes-requested, attendance in/out, visit recorded), each committed inside its action's own batch or transaction. Coordinator audit history at `/coordinator/audit` — day-grouped chronological view (FR-AUDIT-004) with user/action/entity/date filters (FR-AUDIT-005). No rules or index changes were needed; the generic `audit_events` create rule from Phase 5 already covered the retrofit.
+
+**Deliberate deviation:** `activity_logs` is not written and its stub module was deleted. The SRS says the audit trail and activity log are "generated from the same underlying events but serve different audiences", so Servio records each event once in `audit_events` and renders it two ways. See `docs/CHANGELOG.md`.
+
+**Still open from this phase:** the coordinator view filters client-side over the 300 most recent events (server-side filtering needs three composite indexes); "Student Created" and "Internship Completed" audit events await a registration hook and a completion flow that doesn't exist yet.
+
+**Original plan:**
 Build out `lib/features/activity/` and `lib/features/audit/`, again retrofitting into every write path built so far. These are both "generated from the same underlying events" (SRS §1) so should share the batched-write hookup added in Phase 6. Add a Coordinator-facing audit history view (SRS FR-AUDIT-004/005 — filterable by user/date/action/entity).
 
-### Phase 8 — Reports & Coordinator admin screens
-Build out `lib/features/reports/` and the remaining Coordinator screens (`/coordinator/students`, `/coordinator/lecturers`) now that the underlying data (attendance, logbook, supervision, audit) actually exists to report on.
+### Phase 8 — Reports & Coordinator admin screens (built 2026-09-15)
+
+**Built:** coordinator navigation shell (Placements · Students · Lecturers · Reports; bottom bar on phones, side rail on laptops); student management with search and a detail page; **internship completion** (`active → completed`), the last step of the cycle; lecturer management with **lecturer self-registration and coordinator approval**; on-screen reports (placement summary, supervision coverage, student progress, lecturer workload) using Firestore `count()` aggregations. Rules deployed: lecturer permissions now require an approved account. The full placement cycle was driven end to end through the web build. See `docs/CHANGELOG.md` and `docs/MVP_GUIDE.md`.
+
+**Original plan:** Build out `lib/features/reports/` and the remaining Coordinator screens (`/coordinator/students`, `/coordinator/lecturers`) now that the underlying data (attendance, logbook, supervision, audit) actually exists to report on.
+
+## MVP status (2026-09-15)
+
+Every item in PRD §18's MVP scope is built **except push notifications**, which need Cloud Functions and therefore the Blaze plan (in-app notifications cover the same events). PRD §21's success definition — completing an entire placement cycle in the platform — was demonstrated end to end.
+
+**Still open after the MVP:**
+- Push notification delivery (billing decision: Blaze + Cloud Functions).
+- FR-SUP-005 visit photos (SHOULD HAVE) — needs the `supervision_photos/` Storage path.
+- Report export (CSV/PDF).
+- Pagination for coordinator screens and audit history once records reach the thousands.
+- Lecturers can read any student's profile, not only assigned ones (a Firestore rules limitation noted in Phase 5).
+- The Dart SDK constraint still points at a pre-release channel (see "Cross-cutting work" below).
 
 ### Phase 9 — Settings & polish
-Lowest priority: `lib/features/settings/`, plus cross-cutting polish — Crashlytics/error monitoring (SRS NFR-REL-003/NFR-LOG-001, not yet integrated), dark mode theme (DSS §4 says build with theme support in mind — confirm no hardcoded colors have crept into any feature screens), and closing test-coverage gaps for every feature built in Phases 0–8.
+Lowest priority: ~~`lib/features/settings/`~~ (stub removed in Phase 8 — nothing linked to it and it isn't in PRD MVP scope; rebuild if a real need appears), plus cross-cutting polish — Crashlytics/error monitoring (SRS NFR-REL-003/NFR-LOG-001, not yet integrated), dark mode theme (DSS §4 says build with theme support in mind — confirm no hardcoded colors have crept into any feature screens), and closing test-coverage gaps for every feature built in Phases 0–8.
 
 ## Firebase plan constraints
 
