@@ -140,7 +140,11 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
 
     final result = await ref
         .read(checkOutUseCaseProvider)
-        .call(internship.internshipId);
+        .call(
+          internshipId: internship.internshipId,
+          studentId: internship.studentId,
+          studentName: internship.studentName,
+        );
 
     switch (result) {
       case Success():

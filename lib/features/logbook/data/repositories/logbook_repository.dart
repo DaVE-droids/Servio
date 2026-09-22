@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/enums/logbook_status.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../audit/domain/audit_event_factory.dart';
 import '../../../notifications/domain/notification_factory.dart';
 import '../models/logbook_entry_model.dart';
 import '../models/logbook_entry_request.dart';
@@ -70,7 +71,19 @@ class LogbookRepository {
         updatedAt: now,
       );
 
-      await _service.saveEntry(documentId: documentId, data: entry.toJson());
+      await _service.saveEntry(
+        documentId: documentId,
+        data: entry.toJson(),
+        auditEvent: AuditEventFactory.logbookSaved(
+          eventId: _service.createAuditEventId(),
+          studentId: entry.studentId,
+          studentName: entry.studentName,
+          entryId: documentId,
+          entryDate: day,
+          isFirstSave: !existing.exists,
+          createdAt: now,
+        ).toJson(),
+      );
       return Success(entry);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));
@@ -96,6 +109,18 @@ class LogbookRepository {
             entryId: entry.entryId,
             lecturerId: entry.lecturerId,
             lecturerName: entry.lecturerName,
+            entryDate: entry.date,
+            createdAt: now,
+          ).toJson(),
+        ],
+        auditEvents: [
+          AuditEventFactory.logbookApproved(
+            eventId: _service.createAuditEventId(),
+            lecturerId: entry.lecturerId,
+            lecturerName: entry.lecturerName,
+            entryId: entry.entryId,
+            studentId: entry.studentId,
+            studentName: entry.studentName,
             entryDate: entry.date,
             createdAt: now,
           ).toJson(),
@@ -130,6 +155,18 @@ class LogbookRepository {
             entryId: entry.entryId,
             lecturerId: entry.lecturerId,
             lecturerName: entry.lecturerName,
+            entryDate: entry.date,
+            createdAt: now,
+          ).toJson(),
+        ],
+        auditEvents: [
+          AuditEventFactory.logbookChangesRequested(
+            eventId: _service.createAuditEventId(),
+            lecturerId: entry.lecturerId,
+            lecturerName: entry.lecturerName,
+            entryId: entry.entryId,
+            studentId: entry.studentId,
+            studentName: entry.studentName,
             entryDate: entry.date,
             createdAt: now,
           ).toJson(),

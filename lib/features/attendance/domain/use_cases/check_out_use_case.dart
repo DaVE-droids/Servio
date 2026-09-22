@@ -8,8 +8,18 @@ class CheckOutUseCase {
 
   final AttendanceRepository _repository;
 
-  /// Executes the check-out workflow.
-  Future<Result<void>> call(String internshipId) {
-    return _repository.checkOut(internshipId);
+  /// Executes the check-out workflow. The student's identity is passed
+  /// through because the audit event written alongside the check-out
+  /// names who acted, and the caller already has it loaded.
+  Future<Result<void>> call({
+    required String internshipId,
+    required String studentId,
+    required String studentName,
+  }) {
+    return _repository.checkOut(
+      internshipId: internshipId,
+      studentId: studentId,
+      studentName: studentName,
+    );
   }
 }

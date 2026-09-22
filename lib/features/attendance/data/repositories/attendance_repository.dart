@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/enums/attendance_status.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../audit/domain/audit_event_factory.dart';
 import '../models/attendance_check_in_request.dart';
 import '../models/attendance_model.dart';
 import '../services/attendance_service.dart';
@@ -47,6 +48,13 @@ class AttendanceRepository {
       await _service.checkIn(
         documentId: documentId,
         data: attendance.toJson(),
+        auditEvent: AuditEventFactory.attendanceCheckedIn(
+          eventId: _service.createAuditEventId(),
+          studentId: request.studentId,
+          studentName: request.studentName,
+          attendanceId: documentId,
+          createdAt: now,
+        ).toJson(),
       );
       return Success(attendance);
     } on StateError {
@@ -65,7 +73,11 @@ class AttendanceRepository {
   }
 
   /// Records a check-out against today's attendance record.
-  Future<Result<void>> checkOut(String internshipId) async {
+  Future<Result<void>> checkOut({
+    required String internshipId,
+    required String studentId,
+    required String studentName,
+  }) async {
     try {
       final now = DateTime.now().toUtc();
       final day = DateTime.utc(now.year, now.month, now.day);
@@ -81,6 +93,13 @@ class AttendanceRepository {
           'status': AttendanceStatus.completed.firestoreValue,
           'updatedAt': Timestamp.fromDate(now),
         },
+        auditEvent: AuditEventFactory.attendanceCheckedOut(
+          eventId: _service.createAuditEventId(),
+          studentId: studentId,
+          studentName: studentName,
+          attendanceId: documentId,
+          createdAt: now,
+        ).toJson(),
       );
       return const Success(null);
     } on FirebaseException catch (error) {

@@ -18,14 +18,25 @@ class AttendanceService {
     return '${internshipId}_$y-$m-$d';
   }
 
+  /// Creates a new audit event document ID.
+  String createAuditEventId() {
+    return _firestore.collection('audit_events').doc().id;
+  }
+
   /// Records a check-in, failing if today's record already exists.
   ///
   /// Runs as a transaction: reads the deterministic doc for today, and
   /// only creates it if absent, preventing two concurrent check-ins from
   /// both succeeding (ARS §9). Throws [StateError] if already checked in.
+  ///
+  /// [auditEvent] is written inside that same transaction, so a duplicate
+  /// check-in that rolls back leaves no audit record behind either. This
+  /// is the one write path that uses a transaction rather than a batch —
+  /// everything else audits through a batch.
   Future<void> checkIn({
     required String documentId,
     required Map<String, dynamic> data,
+    Map<String, dynamic>? auditEvent,
   }) {
     final docRef = _firestore.collection('attendance').doc(documentId);
     return _firestore.runTransaction<void>((transaction) async {
@@ -34,6 +45,14 @@ class AttendanceService {
         throw StateError('already-checked-in');
       }
       transaction.set(docRef, data);
+      if (auditEvent != null) {
+        transaction.set(
+          _firestore
+              .collection('audit_events')
+              .doc(auditEvent['eventId'] as String),
+          auditEvent,
+        );
+      }
     });
   }
 
@@ -41,8 +60,22 @@ class AttendanceService {
   Future<void> checkOut({
     required String documentId,
     required Map<String, dynamic> updates,
+    Map<String, dynamic>? auditEvent,
   }) {
-    return _firestore.collection('attendance').doc(documentId).update(updates);
+    final docRef = _firestore.collection('attendance').doc(documentId);
+    if (auditEvent == null) {
+      return docRef.update(updates);
+    }
+
+    final batch = _firestore.batch();
+    batch.update(docRef, updates);
+    batch.set(
+      _firestore
+          .collection('audit_events')
+          .doc(auditEvent['eventId'] as String),
+      auditEvent,
+    );
+    return batch.commit();
   }
 
   /// Returns today's attendance document for an internship, if any.

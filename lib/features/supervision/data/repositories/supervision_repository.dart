@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
-import '../../../audit/data/models/audit_event_model.dart';
+import '../../../audit/domain/audit_event_factory.dart';
 import '../../../notifications/domain/notification_factory.dart';
 import '../models/supervision_report_model.dart';
 import '../models/supervision_report_request.dart';
@@ -52,16 +52,13 @@ class SupervisionRepository {
         createdAt: now,
       );
 
-      final auditEvent = AuditEventModel(
+      final auditEvent = AuditEventFactory.supervisionReportCreated(
         eventId: auditEventId,
-        actorId: lecturerId,
-        actorName: lecturerName,
-        actorRole: 'lecturer',
-        action: 'created_supervision_report',
-        entityType: 'supervision_report',
-        entityId: reportId,
-        targetUserId: studentId,
-        description: 'Submitted a supervision visit report for $studentName.',
+        lecturerId: lecturerId,
+        lecturerName: lecturerName,
+        reportId: reportId,
+        studentId: studentId,
+        studentName: studentName,
         createdAt: now,
       );
 

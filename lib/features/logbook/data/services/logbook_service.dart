@@ -17,27 +17,44 @@ class LogbookService {
     return '${internshipId}_$y-$m-$d';
   }
 
-  /// Creates or overwrites today's logbook entry.
+  /// Creates or overwrites today's logbook entry, together with the audit
+  /// event recording the create or edit (FR-AUDIT-001).
   Future<void> saveEntry({
     required String documentId,
     required Map<String, dynamic> data,
+    Map<String, dynamic>? auditEvent,
   }) {
-    return _firestore.collection('logbook_entries').doc(documentId).set(data);
+    final entryRef = _firestore.collection('logbook_entries').doc(documentId);
+    if (auditEvent == null) {
+      return entryRef.set(data);
+    }
+
+    final batch = _firestore.batch();
+    batch.set(entryRef, data);
+    batch.set(
+      _firestore
+          .collection('audit_events')
+          .doc(auditEvent['eventId'] as String),
+      auditEvent,
+    );
+    return batch.commit();
   }
 
   /// Updates specific fields on an existing entry (lecturer review, or a
   /// student resubmission after changes were requested).
   ///
-  /// [notifications] are written in the same batch, so a student can never
-  /// be told their entry was reviewed unless the review itself committed.
-  /// Each entry must carry its own `notificationId`.
+  /// [notifications] and [auditEvents] are written in the same batch, so a
+  /// student can never be told their entry was reviewed — and the audit
+  /// trail can never claim it was — unless the review itself committed.
+  /// Each document must carry its own ID field.
   Future<void> updateEntry({
     required String documentId,
     required Map<String, dynamic> updates,
     List<Map<String, dynamic>> notifications = const [],
+    List<Map<String, dynamic>> auditEvents = const [],
   }) {
     final entryRef = _firestore.collection('logbook_entries').doc(documentId);
-    if (notifications.isEmpty) {
+    if (notifications.isEmpty && auditEvents.isEmpty) {
       return entryRef.update(updates);
     }
 
@@ -51,12 +68,25 @@ class LogbookService {
         notification,
       );
     }
+    for (final auditEvent in auditEvents) {
+      batch.set(
+        _firestore
+            .collection('audit_events')
+            .doc(auditEvent['eventId'] as String),
+        auditEvent,
+      );
+    }
     return batch.commit();
   }
 
   /// Creates a new notification document ID.
   String createNotificationId() {
     return _firestore.collection('notifications').doc().id;
+  }
+
+  /// Creates a new audit event document ID.
+  String createAuditEventId() {
+    return _firestore.collection('audit_events').doc().id;
   }
 
   /// Returns a specific entry by ID, if it exists.
