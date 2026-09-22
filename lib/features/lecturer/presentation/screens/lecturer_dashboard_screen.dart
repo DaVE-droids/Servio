@@ -14,6 +14,7 @@ import '../../../authentication/presentation/providers/authentication_providers.
 import '../../../internship/data/models/internship_model.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../providers/assigned_students_provider.dart';
+import '../../../notifications/presentation/widgets/notifications_bell_button.dart';
 
 /// Lecturer dashboard: assigned-student summary and quick access.
 class LecturerDashboardScreen extends ConsumerWidget {
@@ -30,6 +31,7 @@ class LecturerDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Lecturer Dashboard'),
         actions: [
+          const NotificationsBellButton(),
           TextButton(
             onPressed: authState.isLoading
                 ? null
