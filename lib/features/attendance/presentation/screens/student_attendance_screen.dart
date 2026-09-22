@@ -46,6 +46,14 @@ class StudentAttendanceScreen extends ConsumerWidget {
       ),
       data: (internshipState) {
         final internship = internshipState.currentInternship;
+        if (internship?.status == InternshipStatus.completed) {
+          return const AppEmptyState(
+            title: 'Internship Completed',
+            message:
+                'Your internship has been completed, so attendance is closed. '
+                'Your attendance records are kept.',
+          );
+        }
         if (internship == null || internship.status != InternshipStatus.active) {
           return const AppEmptyState(
             title: 'Attendance Unavailable',

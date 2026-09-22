@@ -47,6 +47,14 @@ class StudentLogbookScreen extends ConsumerWidget {
       ),
       data: (internshipState) {
         final internship = internshipState.currentInternship;
+        if (internship?.status == InternshipStatus.completed) {
+          return const AppEmptyState(
+            title: 'Internship Completed',
+            message:
+                'Your internship has been completed, so the logbook is closed '
+                'to new entries. Your entries are kept.',
+          );
+        }
         if (internship == null || internship.status != InternshipStatus.active) {
           return const AppEmptyState(
             title: 'Logbook Unavailable',

@@ -29,12 +29,27 @@ class InternshipService {
         .get();
   }
 
-  /// Creates a new internship placement document.
+  /// Creates a new internship placement document, together with the audit
+  /// event recording the submission (FR-AUDIT-001).
   Future<void> createInternship({
     required String internshipId,
     required Map<String, dynamic> data,
+    Map<String, dynamic>? auditEvent,
   }) {
-    return _firestore.collection('internships').doc(internshipId).set(data);
+    final internshipRef = _firestore.collection('internships').doc(internshipId);
+    if (auditEvent == null) {
+      return internshipRef.set(data);
+    }
+
+    final batch = _firestore.batch();
+    batch.set(internshipRef, data);
+    batch.set(
+      _firestore
+          .collection('audit_events')
+          .doc(auditEvent['eventId'] as String),
+      auditEvent,
+    );
+    return batch.commit();
   }
 
   /// Creates a new internship document ID.
@@ -56,18 +71,25 @@ class InternshipService {
     return _firestore.collection('notifications').doc().id;
   }
 
-  /// Applies a status change and writes any accompanying notifications in
-  /// one batch, so a student can never be notified about a transition that
-  /// didn't commit. Each notification must carry its own `notificationId`.
-  Future<void> _updateWithNotifications({
+  /// Creates a new audit event document ID.
+  String createAuditEventId() {
+    return _firestore.collection('audit_events').doc().id;
+  }
+
+  /// Applies a status change and writes any accompanying notifications and
+  /// audit events in one batch, so neither a student notification nor an
+  /// audit record can describe a transition that didn't commit. Each
+  /// document must carry its own ID field.
+  Future<void> _updateWithSideEffects({
     required String internshipId,
     required Map<String, dynamic> updates,
     required List<Map<String, dynamic>> notifications,
+    required List<Map<String, dynamic>> auditEvents,
   }) {
     final internshipRef = _firestore
         .collection('internships')
         .doc(internshipId);
-    if (notifications.isEmpty) {
+    if (notifications.isEmpty && auditEvents.isEmpty) {
       return internshipRef.update(updates);
     }
 
@@ -81,6 +103,14 @@ class InternshipService {
         notification,
       );
     }
+    for (final auditEvent in auditEvents) {
+      batch.set(
+        _firestore
+            .collection('audit_events')
+            .doc(auditEvent['eventId'] as String),
+        auditEvent,
+      );
+    }
     return batch.commit();
   }
 
@@ -89,9 +119,10 @@ class InternshipService {
     required String internshipId,
     required String coordinatorId,
     List<Map<String, dynamic>> notifications = const [],
+    List<Map<String, dynamic>> auditEvents = const [],
   }) {
     final now = Timestamp.fromDate(DateTime.now().toUtc());
-    return _updateWithNotifications(
+    return _updateWithSideEffects(
       internshipId: internshipId,
       updates: {
         'status': 'approved',
@@ -100,6 +131,7 @@ class InternshipService {
         'updatedAt': now,
       },
       notifications: notifications,
+      auditEvents: auditEvents,
     );
   }
 
@@ -108,9 +140,10 @@ class InternshipService {
     required String internshipId,
     required String coordinatorId,
     List<Map<String, dynamic>> notifications = const [],
+    List<Map<String, dynamic>> auditEvents = const [],
   }) {
     final now = Timestamp.fromDate(DateTime.now().toUtc());
-    return _updateWithNotifications(
+    return _updateWithSideEffects(
       internshipId: internshipId,
       updates: {
         'status': 'rejected',
@@ -119,6 +152,7 @@ class InternshipService {
         'updatedAt': now,
       },
       notifications: notifications,
+      auditEvents: auditEvents,
     );
   }
 
@@ -150,13 +184,45 @@ class InternshipService {
   }
 
   /// Activates an internship, moving assigned -> active.
-  Future<void> activateInternship({required String internshipId}) {
+  Future<void> activateInternship({
+    required String internshipId,
+    List<Map<String, dynamic>> auditEvents = const [],
+  }) {
     final now = Timestamp.fromDate(DateTime.now().toUtc());
-    return _firestore.collection('internships').doc(internshipId).update({
-      'status': 'active',
-      'activatedAt': now,
-      'updatedAt': now,
-    });
+    return _updateWithSideEffects(
+      internshipId: internshipId,
+      updates: {'status': 'active', 'activatedAt': now, 'updatedAt': now},
+      notifications: const [],
+      auditEvents: auditEvents,
+    );
+  }
+
+  /// Completes an internship, moving active -> completed. This is the last
+  /// step of the placement cycle (DDS §10.2); attendance and logbook
+  /// writes stop being accepted once the status leaves `active`.
+  Future<void> completeInternship({
+    required String internshipId,
+    List<Map<String, dynamic>> notifications = const [],
+    List<Map<String, dynamic>> auditEvents = const [],
+  }) {
+    final now = Timestamp.fromDate(DateTime.now().toUtc());
+    return _updateWithSideEffects(
+      internshipId: internshipId,
+      updates: {'status': 'completed', 'completedAt': now, 'updatedAt': now},
+      notifications: notifications,
+      auditEvents: auditEvents,
+    );
+  }
+
+  /// Returns every internship, for coordinator oversight screens (student
+  /// management, lecturer workload, reports).
+  ///
+  /// Unfiltered on purpose: the `internships` list rule grants coordinators
+  /// every document, and at pilot scale one read of the whole collection is
+  /// simpler and cheaper than a query per screen. Revisit with pagination
+  /// if the collection grows into the thousands.
+  Future<QuerySnapshot<Map<String, dynamic>>> getAllInternships() {
+    return _firestore.collection('internships').get();
   }
 
   /// Assigns a lecturer to an approved internship.
@@ -165,9 +231,10 @@ class InternshipService {
     required String lecturerId,
     required String lecturerName,
     List<Map<String, dynamic>> notifications = const [],
+    List<Map<String, dynamic>> auditEvents = const [],
   }) {
     final now = Timestamp.fromDate(DateTime.now().toUtc());
-    return _updateWithNotifications(
+    return _updateWithSideEffects(
       internshipId: internshipId,
       updates: {
         'status': 'assigned',
@@ -177,6 +244,7 @@ class InternshipService {
         'updatedAt': now,
       },
       notifications: notifications,
+      auditEvents: auditEvents,
     );
   }
 }

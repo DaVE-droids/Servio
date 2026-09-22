@@ -95,6 +95,34 @@ void main() {
       expect(notification.message, contains('Amaka Nwosu'));
     });
 
+    test('completion notifies the student', () {
+      final notification = NotificationFactory.internshipCompleted(
+        notificationId: 'notif-4',
+        studentId: 'student-1',
+        internshipId: 'int-1',
+        companyName: 'Andela Nigeria',
+        coordinatorId: 'coordinator-1',
+        coordinatorName: 'Grace Okon',
+        createdAt: DateTime.utc(2026, 9, 14),
+      );
+      expect(notification.recipientId, 'student-1');
+      expect(notification.title, 'Internship Completed');
+      expect(notification.message, contains('Andela Nigeria'));
+    });
+
+    test('account approval notifies the lecturer, not the coordinator', () {
+      final notification = NotificationFactory.lecturerAccountApproved(
+        notificationId: 'notif-5',
+        lecturerId: 'lecturer-1',
+        coordinatorId: 'coordinator-1',
+        coordinatorName: 'Grace Okon',
+        createdAt: DateTime.utc(2026, 9, 14),
+      );
+      expect(notification.recipientId, 'lecturer-1');
+      expect(notification.recipientRole, 'lecturer');
+      expect(notification.type, NotificationType.system);
+    });
+
     test('supervision reports notify the student who was visited', () {
       final notification = NotificationFactory.supervisionReportSubmitted(
         notificationId: 'notif-3',

@@ -147,7 +147,10 @@ class InternshipModel {
       companySupervisorName: json['companySupervisorName'] as String,
       companySupervisorPhone: json['companySupervisorPhone'] as String,
       department: json['department'] as String,
-      country: json['country'] as String,
+      // Placements submitted before the Country field existed have no
+      // value stored; read them as blank rather than failing the whole
+      // list they appear in.
+      country: json['country'] as String? ?? '',
       state: json['state'] as String,
       startDate: _readDateTime(json['startDate']),
       endDate: _readDateTime(json['endDate']),

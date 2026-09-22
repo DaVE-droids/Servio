@@ -182,4 +182,29 @@ void main() {
     expect(roundTripped.lecturerName, 'Dr. Samuel Johnson');
     expect(roundTripped.activatedAt, DateTime.utc(2026, 8, 3));
   });
+
+  test('parses a placement stored before the country field existed', () {
+    final internship = InternshipModel.fromJson({
+      'internshipId': 'int-old',
+      'studentId': 'student-1',
+      'studentName': 'IBK Osobu',
+      'studentMatricNumber': 'RUN/22/CPE/12567',
+      'status': 'active',
+      'companyName': 'Maybe',
+      'companyAddress': 'Ikeja',
+      'companyLatitude': 6.6,
+      'companyLongitude': 3.3,
+      'companySupervisorName': 'Jane Doe',
+      'companySupervisorPhone': '+2348012345678',
+      'department': 'CPE',
+      'state': 'Lagos',
+      'startDate': '2026-08-01T00:00:00.000Z',
+      'endDate': '2026-12-01T00:00:00.000Z',
+      'submittedAt': '2026-07-31T00:00:00.000Z',
+      'createdAt': '2026-07-31T00:00:00.000Z',
+      'updatedAt': '2026-07-31T00:00:00.000Z',
+    });
+    expect(internship.country, isEmpty);
+    expect(internship.status, InternshipStatus.active);
+  });
 }

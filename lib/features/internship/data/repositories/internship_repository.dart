@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../../../../core/enums/internship_status.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../audit/domain/audit_event_factory.dart';
 import '../../../notifications/domain/notification_factory.dart';
 import '../models/internship_model.dart';
 import '../models/internship_submission_request.dart';
@@ -111,6 +112,14 @@ class InternshipRepository {
       await _service.createInternship(
         internshipId: internshipId,
         data: internship.toJson(),
+        auditEvent: AuditEventFactory.placementSubmitted(
+          eventId: _service.createAuditEventId(),
+          studentId: studentId,
+          studentName: studentName.trim(),
+          internshipId: internshipId,
+          companyName: internship.companyName,
+          createdAt: now,
+        ).toJson(),
       );
       return Success(internship);
     } on FirebaseException catch (error) {
@@ -167,6 +176,7 @@ class InternshipRepository {
     required String coordinatorName,
   }) async {
     try {
+      final now = DateTime.now().toUtc();
       await _service.approveInternship(
         internshipId: internship.internshipId,
         coordinatorId: coordinatorId,
@@ -178,7 +188,19 @@ class InternshipRepository {
             companyName: internship.companyName,
             coordinatorId: coordinatorId,
             coordinatorName: coordinatorName,
-            createdAt: DateTime.now().toUtc(),
+            createdAt: now,
+          ).toJson(),
+        ],
+        auditEvents: [
+          AuditEventFactory.placementApproved(
+            eventId: _service.createAuditEventId(),
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            internshipId: internship.internshipId,
+            studentId: internship.studentId,
+            studentName: _displayName(internship.studentName),
+            companyName: internship.companyName,
+            createdAt: now,
           ).toJson(),
         ],
       );
@@ -197,6 +219,7 @@ class InternshipRepository {
     required String coordinatorName,
   }) async {
     try {
+      final now = DateTime.now().toUtc();
       await _service.rejectInternship(
         internshipId: internship.internshipId,
         coordinatorId: coordinatorId,
@@ -208,7 +231,19 @@ class InternshipRepository {
             companyName: internship.companyName,
             coordinatorId: coordinatorId,
             coordinatorName: coordinatorName,
-            createdAt: DateTime.now().toUtc(),
+            createdAt: now,
+          ).toJson(),
+        ],
+        auditEvents: [
+          AuditEventFactory.placementRejected(
+            eventId: _service.createAuditEventId(),
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            internshipId: internship.internshipId,
+            studentId: internship.studentId,
+            studentName: _displayName(internship.studentName),
+            companyName: internship.companyName,
+            createdAt: now,
           ).toJson(),
         ],
       );
@@ -272,10 +307,28 @@ class InternshipRepository {
     }
   }
 
-  /// Activates an internship, moving assigned -> active.
-  Future<Result<void>> activateInternship(String internshipId) async {
+  /// Activates an internship, moving assigned -> active, and records who
+  /// started it.
+  Future<Result<void>> activateInternship({
+    required InternshipModel internship,
+    required String coordinatorId,
+    required String coordinatorName,
+  }) async {
     try {
-      await _service.activateInternship(internshipId: internshipId);
+      await _service.activateInternship(
+        internshipId: internship.internshipId,
+        auditEvents: [
+          AuditEventFactory.internshipActivated(
+            eventId: _service.createAuditEventId(),
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            internshipId: internship.internshipId,
+            studentId: internship.studentId,
+            studentName: _displayName(internship.studentName),
+            createdAt: DateTime.now().toUtc(),
+          ).toJson(),
+        ],
+      );
       return const Success(null);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));
@@ -322,6 +375,18 @@ class InternshipRepository {
             createdAt: now,
           ).toJson(),
         ],
+        auditEvents: [
+          AuditEventFactory.lecturerAssigned(
+            eventId: _service.createAuditEventId(),
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            internshipId: internship.internshipId,
+            studentId: internship.studentId,
+            studentName: _displayName(internship.studentName),
+            lecturerName: lecturerName,
+            createdAt: now,
+          ).toJson(),
+        ],
       );
       return const Success(null);
     } on FirebaseException catch (error) {
@@ -330,4 +395,67 @@ class InternshipRepository {
       return Failure(_unknownFailure(error));
     }
   }
+
+  /// Marks an active internship completed, notifying the student and
+  /// recording the audit event in the same batch.
+  Future<Result<void>> completeInternship({
+    required InternshipModel internship,
+    required String coordinatorId,
+    required String coordinatorName,
+  }) async {
+    try {
+      final now = DateTime.now().toUtc();
+      await _service.completeInternship(
+        internshipId: internship.internshipId,
+        notifications: [
+          NotificationFactory.internshipCompleted(
+            notificationId: _service.createNotificationId(),
+            studentId: internship.studentId,
+            internshipId: internship.internshipId,
+            companyName: internship.companyName,
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            createdAt: now,
+          ).toJson(),
+        ],
+        auditEvents: [
+          AuditEventFactory.internshipCompleted(
+            eventId: _service.createAuditEventId(),
+            coordinatorId: coordinatorId,
+            coordinatorName: coordinatorName,
+            internshipId: internship.internshipId,
+            studentId: internship.studentId,
+            studentName: _displayName(internship.studentName),
+            createdAt: now,
+          ).toJson(),
+        ],
+      );
+      return const Success(null);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  /// Retrieves every internship on record (coordinator only).
+  Future<Result<List<InternshipModel>>> getAllInternships() async {
+    try {
+      final snapshot = await _service.getAllInternships();
+      final internships = snapshot.docs
+          .map((doc) => InternshipModel.fromJson(doc.data()))
+          .toList();
+      return Success(internships);
+    } on FirebaseException catch (error) {
+      return Failure(_mapFirebaseException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  /// Falls back to a neutral label when a placement predates the
+  /// denormalized student name, so an audit line never reads "'s
+  /// placement" with nothing in front of it.
+  String _displayName(String studentName) =>
+      studentName.trim().isEmpty ? 'a student' : studentName.trim();
 }

@@ -176,6 +176,61 @@ abstract final class NotificationFactory {
     );
   }
 
+  /// Coordinator marked the student's internship as completed — the final
+  /// step of the placement cycle.
+  static NotificationModel internshipCompleted({
+    required String notificationId,
+    required String studentId,
+    required String internshipId,
+    required String companyName,
+    required String coordinatorId,
+    required String coordinatorName,
+    required DateTime createdAt,
+  }) {
+    return NotificationModel(
+      notificationId: notificationId,
+      recipientId: studentId,
+      recipientRole: 'student',
+      senderId: coordinatorId,
+      senderName: coordinatorName,
+      title: 'Internship Completed',
+      message:
+          'Your internship at $companyName has been marked as completed. '
+          'Your records are kept for future reference.',
+      type: NotificationType.placement,
+      relatedEntityId: internshipId,
+      relatedEntityType: 'internship',
+      isRead: false,
+      createdAt: createdAt,
+    );
+  }
+
+  /// Coordinator approved a lecturer's self-registered account.
+  static NotificationModel lecturerAccountApproved({
+    required String notificationId,
+    required String lecturerId,
+    required String coordinatorId,
+    required String coordinatorName,
+    required DateTime createdAt,
+  }) {
+    return NotificationModel(
+      notificationId: notificationId,
+      recipientId: lecturerId,
+      recipientRole: 'lecturer',
+      senderId: coordinatorId,
+      senderName: coordinatorName,
+      title: 'Account Approved',
+      message:
+          'Your lecturer account has been approved. You can now be assigned '
+          'students to supervise.',
+      type: NotificationType.system,
+      relatedEntityId: lecturerId,
+      relatedEntityType: 'user',
+      isRead: false,
+      createdAt: createdAt,
+    );
+  }
+
   /// A supervision visit report was filed for this student.
   static NotificationModel supervisionReportSubmitted({
     required String notificationId,
