@@ -1,14 +1,23 @@
 // Local-only admin tooling for seeding test accounts into the live Servio
 // Firebase project. Requires scripts/servio-account.json (a service account
-// key — never commit it; scripts/ is gitignored entirely).
+// key — never commit it; it is gitignored, as are seed-output.json and
+// node_modules/. This script itself IS committed, so it must never contain
+// a password).
 //
-// Usage: cd scripts && npm install && node seed_test_users.js
+// Usage:
+//   cd scripts && npm install
+//   SEED_PASSWORD='...' SEED_COORDINATOR_PASSWORD='...' node seed_test_users.js
+//
+// Passwords come from the environment rather than this file because the
+// file is in git: a committed password would let anyone who can see the
+// repository sign in to the live project. The coordinator gets its own
+// password because a coordinator account can read every student's record.
 //
 // Uses the Firebase Admin SDK, which bypasses Firestore security rules —
 // this is intentional and required, since the rules only allow a client to
 // self-register with role 'student' (see firestore.rules,
-// isValidStudentProfileCreate). Lecturer/coordinator accounts have no
-// client-facing signup flow at all yet, by design.
+// isValidStudentProfileCreate). Lecturers can now self-register in the app
+// (and wait for approval); coordinators still can't, by design.
 
 const admin = require('firebase-admin');
 const serviceAccount = require('./servio-account.json');
@@ -20,7 +29,29 @@ admin.initializeApp({
 const auth = admin.auth();
 const db = admin.firestore();
 
-const PASSWORD = 'REMOVED';
+const PASSWORD = process.env.SEED_PASSWORD;
+const COORDINATOR_PASSWORD = process.env.SEED_COORDINATOR_PASSWORD;
+if (!PASSWORD || !COORDINATOR_PASSWORD) {
+  console.error(
+    'Set SEED_PASSWORD (students and lecturers) and SEED_COORDINATOR_PASSWORD ' +
+      'in the environment. Passwords are deliberately not stored in this file.',
+  );
+  process.exit(1);
+}
+
+// A test coordinator, so the admin screens can be exercised end to end
+// without using the real coordinator's personal account.
+const coordinators = [
+  {
+    firstName: 'Grace',
+    lastName: 'Okon',
+    email: 'coordinator.okon@servio.test',
+    department: 'Computer Science',
+    faculty: 'Natural Sciences',
+    staffId: 'CSC/COORD/001',
+    phoneNumber: '+2348012340100',
+  },
+];
 
 const lecturers = [
   {
@@ -83,11 +114,12 @@ const students = [
 ];
 
 async function upsertAccount({ role, firstName, lastName, email, department, faculty, staffId, matricNumber, phoneNumber }) {
+  const password = role === 'coordinator' ? COORDINATOR_PASSWORD : PASSWORD;
   let userRecord;
   try {
     userRecord = await auth.createUser({
       email,
-      password: PASSWORD,
+      password,
       displayName: `${firstName} ${lastName}`,
       emailVerified: true,
     });
@@ -125,12 +157,15 @@ async function upsertAccount({ role, firstName, lastName, email, department, fac
   );
   console.log(`  -> wrote users/${userRecord.uid} (role: ${role})`);
 
-  return { role, email, password: PASSWORD, uid: userRecord.uid };
+  return { role, email, password, uid: userRecord.uid };
 }
 
 async function main() {
   const created = [];
 
+  for (const coordinator of coordinators) {
+    created.push(await upsertAccount({ role: 'coordinator', ...coordinator }));
+  }
   for (const lecturer of lecturers) {
     created.push(await upsertAccount({ role: 'lecturer', ...lecturer }));
   }
@@ -141,8 +176,7 @@ async function main() {
   const fs = require('fs');
   fs.writeFileSync('./seed-output.json', JSON.stringify(created, null, 2));
 
-  console.log('\nDone. All accounts use the password:', PASSWORD);
-  console.log('Full list also saved to scripts/seed-output.json (gitignored).');
+  console.log('\nDone. Emails and passwords saved to scripts/seed-output.json (gitignored).');
 }
 
 main().catch((error) => {
