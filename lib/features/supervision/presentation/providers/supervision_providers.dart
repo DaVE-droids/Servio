@@ -59,19 +59,18 @@ final lecturerReportsProvider = FutureProvider<List<SupervisionReportModel>>((
 });
 
 /// The most recent visit per internship, keyed by internship ID.
-final lastVisitByInternshipProvider = Provider<AsyncValue<Map<String, DateTime>>>((
-  ref,
-) {
-  return ref.watch(lecturerReportsProvider).whenData((reports) {
-    final lastVisits = <String, DateTime>{};
-    // Reports arrive most-recent-first, so the first one seen for an
-    // internship is its latest visit.
-    for (final report in reports) {
-      lastVisits.putIfAbsent(report.internshipId, () => report.visitDate);
-    }
-    return lastVisits;
-  });
-});
+final lastVisitByInternshipProvider =
+    Provider<AsyncValue<Map<String, DateTime>>>((ref) {
+      return ref.watch(lecturerReportsProvider).whenData((reports) {
+        final lastVisits = <String, DateTime>{};
+        // Reports arrive most-recent-first, so the first one seen for an
+        // internship is its latest visit.
+        for (final report in reports) {
+          lastVisits.putIfAbsent(report.internshipId, () => report.visitDate);
+        }
+        return lastVisits;
+      });
+    });
 
 /// Provides the supervision visit report form controller.
 final supervisionControllerProvider =

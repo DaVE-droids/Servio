@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../../../core/result/result.dart';
 import '../../../authentication/presentation/providers/authentication_providers.dart';
 import '../../../logbook/data/models/logbook_entry_model.dart';
@@ -30,7 +31,9 @@ class PendingLogbookReviewsController
         .read(reviewLogbookEntryUseCaseProvider)
         .approve(entry);
     if (result is Success<void>) {
-      ref.invalidateSelf();
+      ref
+        ..invalidateSelf()
+        ..invalidate(internshipProgressProvider);
     }
     return result;
   }
@@ -44,7 +47,9 @@ class PendingLogbookReviewsController
         .read(reviewLogbookEntryUseCaseProvider)
         .requestChanges(entry: entry, comments: comments);
     if (result is Success<void>) {
-      ref.invalidateSelf();
+      ref
+        ..invalidateSelf()
+        ..invalidate(internshipProgressProvider);
     }
     return result;
   }

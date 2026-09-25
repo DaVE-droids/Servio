@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -57,7 +58,9 @@ class SupervisionController extends Notifier<SupervisionReportState> {
       case Success<SupervisionReportModel>(:final data):
         // Refreshes both the student's visit history and the assigned
         // students list's "last visited" indicators.
-        ref.invalidate(lecturerReportsProvider);
+        ref
+          ..invalidate(lecturerReportsProvider)
+          ..invalidate(internshipProgressProvider);
         state = state.copyWith(
           isSubmitting: false,
           clearMessages: true,

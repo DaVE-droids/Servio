@@ -3,341 +3,339 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/constants/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/enums/internship_status.dart';
+import '../../../../app/theme/app_tone.dart';
 import '../../../../core/providers/firebase_providers.dart';
-import '../../../../core/result/result.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/app_error_state.dart';
-import '../../../../core/widgets/app_loading.dart';
-import '../../../attendance/data/models/attendance_model.dart';
+import '../../../../core/widgets/app_empty_state.dart';
+import '../../../../core/widgets/info_row.dart';
+import '../../../../core/widgets/journey_track.dart';
+import '../../../../core/widgets/person_header.dart';
+import '../../../../core/widgets/placement_status_chip.dart';
+import '../../../../core/widgets/responsive_columns.dart';
+import '../../../../core/widgets/skeleton.dart';
+import '../../../../core/widgets/stat_tile.dart';
+import '../../../../core/enums/internship_status.dart';
 import '../../../attendance/presentation/providers/attendance_providers.dart';
+import '../../../attendance/presentation/widgets/attendance_calendar.dart';
 import '../../../internship/data/models/internship_model.dart';
-import '../../../logbook/data/models/logbook_entry_model.dart';
-import '../../../logbook/presentation/providers/logbook_providers.dart';
-import '../../../profile/data/models/user_model.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../reports/presentation/providers/reports_providers.dart';
+import '../../../supervision/data/models/supervision_report_model.dart';
 import '../../../supervision/presentation/providers/supervision_providers.dart';
+import '../providers/assigned_students_provider.dart';
+import '../widgets/assigned_internship_builder.dart';
 
-/// Lecturer screen showing full detail for one assigned student (FR-SUP-002):
-/// student info, placement info, attendance/logbook summaries, company
-/// location, and contact info, plus Navigate (FR-SUP-003) and a way to
-/// submit a visit report (FR-SUP-004).
-class LecturerStudentDetailScreen extends ConsumerStatefulWidget {
+/// Everything a lecturer needs about one assigned student (FR-SUP-002):
+/// who they are, where they're placed, how their attendance and logbook
+/// are going, and their visit history — with Navigate (FR-SUP-003) and a
+/// new visit report (FR-SUP-004) one tap away.
+class LecturerStudentDetailScreen extends ConsumerWidget {
   /// Creates the lecturer student detail screen.
-  const LecturerStudentDetailScreen({required this.internship, super.key});
+  const LecturerStudentDetailScreen({required this.internshipId, super.key});
 
-  /// The internship being viewed.
+  /// The placement being viewed, from the URL.
+  final String internshipId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AssignedInternshipBuilder(
+      internshipId: internshipId,
+      builder: (context, internship) => _Content(internship: internship),
+    );
+  }
+}
+
+class _Content extends ConsumerWidget {
+  const _Content({required this.internship});
+
   final InternshipModel internship;
 
   @override
-  ConsumerState<LecturerStudentDetailScreen> createState() =>
-      _LecturerStudentDetailScreenState();
-}
-
-class _LecturerStudentDetailScreenState
-    extends ConsumerState<LecturerStudentDetailScreen> {
-  late Future<Result<UserModel>> _studentFuture;
-  late Future<Result<List<AttendanceModel>>> _attendanceFuture;
-  late Future<Result<List<LogbookEntryModel>>> _logbookFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  /// Starts (or restarts) the lookups this screen owns. Retry has to build
-  /// new futures — a bare `setState` would just re-render the same
-  /// already-settled ones and appear to do nothing. Visit history isn't
-  /// here: it comes from the shared [lecturerReportsProvider], so it also
-  /// refreshes when a new report is submitted.
-  void _load() {
-    _studentFuture = ref
-        .read(getCurrentUserUseCaseProvider)
-        .call(widget.internship.studentId);
-    _attendanceFuture = ref
-        .read(getAttendanceHistoryUseCaseProvider)
-        .call(widget.internship.studentId);
-    _logbookFuture = ref
-        .read(getStudentEntriesUseCaseProvider)
-        .call(widget.internship.studentId);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final internship = widget.internship;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Student Detail')),
-      body: FutureBuilder<Result<UserModel>>(
-        future: _studentFuture,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const AppLoading(message: 'Loading student...');
-          }
-          return switch (snapshot.data!) {
-            Failure<UserModel>() => AppErrorState(
-              message: 'Unable to load this student. Please try again.',
-              onRetry: () => setState(_load),
-            ),
-            Success<UserModel>(:final data) => _buildContent(
-              context,
-              internship,
-              data,
-            ),
-          };
-        },
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final student = ref.watch(userProfileProvider(internship.studentId)).value;
+    final attendance = ref.watch(
+      studentAttendanceProvider(internship.studentId),
     );
-  }
+    final progress = ref
+        .watch(internshipProgressProvider(internship.internshipId))
+        .value;
+    final visits = ref
+        .watch(lecturerReportsProvider)
+        .whenData(
+          (reports) => reports
+              .where((report) => report.internshipId == internship.internshipId)
+              .toList(),
+        );
+    final canVisit =
+        internship.status == InternshipStatus.active ||
+        internship.status == InternshipStatus.assigned;
 
-  Widget _buildContent(
-    BuildContext context,
-    InternshipModel internship,
-    UserModel student,
-  ) {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Student Information',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _InfoRow(label: 'Name', value: '${student.firstName} ${student.lastName}'),
-              _InfoRow(
-                label: 'Matric Number',
-                value: student.matricNumber ?? 'Not set',
-              ),
-              _InfoRow(label: 'Department', value: student.department),
-              _InfoRow(label: 'Email', value: student.email),
-              _InfoRow(
-                label: 'Phone',
-                value: student.phoneNumber ?? 'Not set',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Placement Information',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _InfoRow(label: 'Company', value: internship.companyName),
-              _InfoRow(label: 'Status', value: internship.status.label),
-              _InfoRow(
-                label: 'State / Country',
-                value: '${internship.state}, ${internship.country}',
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Company Location',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(internship.companyAddress),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Navigate',
-                variant: AppButtonVariant.secondary,
-                onPressed: () => ref
-                    .read(mapsServiceProvider)
-                    .launchNavigation(
-                      latitude: internship.companyLatitude,
-                      longitude: internship.companyLongitude,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Contact Information',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _InfoRow(
-                label: 'Student Phone',
-                value: student.phoneNumber ?? 'Not set',
-              ),
-              _InfoRow(
-                label: 'Company Supervisor',
-                value: internship.companySupervisorName,
-              ),
-              _InfoRow(
-                label: 'Supervisor Phone',
-                value: internship.companySupervisorPhone,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Attendance Summary',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              FutureBuilder<Result<List<AttendanceModel>>>(
-                future: _attendanceFuture,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Text('Loading...');
-                  }
-                  return switch (snapshot.data!) {
-                    Failure<List<AttendanceModel>>() => const Text(
-                      'Unable to load attendance summary.',
-                    ),
-                    Success<List<AttendanceModel>>(:final data) => Text(
-                      data.isEmpty
-                          ? 'No attendance recorded yet.'
-                          : '${data.length} record(s) — most recent: ${_formatDate(data.first.date)}',
-                    ),
-                  };
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Logbook Summary',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              FutureBuilder<Result<List<LogbookEntryModel>>>(
-                future: _logbookFuture,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Text('Loading...');
-                  }
-                  return switch (snapshot.data!) {
-                    Failure<List<LogbookEntryModel>>() => const Text(
-                      'Unable to load logbook summary.',
-                    ),
-                    Success<List<LogbookEntryModel>>(:final data) => Text(
-                      data.isEmpty
-                          ? 'No logbook entries yet.'
-                          : '${data.length} entr${data.length == 1 ? 'y' : 'ies'} — most recent: ${_formatDate(data.first.date)}',
-                    ),
-                  };
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Visit History',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Consumer(
-                builder: (context, ref, child) {
-                  final reportsValue = ref.watch(lecturerReportsProvider);
-                  return reportsValue.when(
-                    loading: () => const Text('Loading...'),
-                    error: (error, stackTrace) =>
-                        const Text('Unable to load visit history.'),
-                    data: (reports) {
-                      final visits = reports
-                          .where(
-                            (report) =>
-                                report.internshipId ==
-                                internship.internshipId,
-                          )
-                          .toList();
-                      if (visits.isEmpty) {
-                        return const Text('No visits recorded yet.');
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: visits
-                            .map(
-                              (report) => Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: AppSpacing.xs,
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref
+          ..invalidate(assignedStudentsProvider)
+          ..invalidate(userProfileProvider(internship.studentId))
+          ..invalidate(studentAttendanceProvider(internship.studentId))
+          ..invalidate(internshipProgressProvider(internship.internshipId))
+          ..invalidate(lecturerReportsProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          ResponsiveColumns(
+            primary: [
+              PersonHeader(
+                name: internship.studentName.isEmpty
+                    ? 'Student'
+                    : internship.studentName,
+                photoUrl: student?.profilePhotoUrl,
+                tags: [internship.studentMatricNumber, internship.department],
+                status: PlacementStatusChip(status: internship.status),
+                footer: Column(
+                  children: [
+                    JourneyTrack(status: internship.status),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppButton(
+                            label: 'Navigate',
+                            icon: Icons.near_me_outlined,
+                            variant: AppButtonVariant.secondary,
+                            onPressed: () => ref
+                                .read(mapsServiceProvider)
+                                .launchNavigation(
+                                  latitude: internship.companyLatitude,
+                                  longitude: internship.companyLongitude,
                                 ),
-                                child: Text(
-                                  '${_formatDate(report.visitDate)} — Rating: ${report.rating}/5',
+                          ),
+                        ),
+                        if (canVisit) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: AppButton(
+                              label: 'Log visit',
+                              icon: Icons.add_rounded,
+                              onPressed: () => context.push(
+                                AppRoutes.lecturerVisitReport(
+                                  internship.internshipId,
                                 ),
                               ),
-                            )
-                            .toList(),
-                      );
-                    },
-                  );
-                },
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              SectionCard(
+                title: 'Contact',
+                child: InfoPanel(
+                  rows: [
+                    InfoRow(
+                      'Phone',
+                      student?.phoneNumber ?? '—',
+                      icon: Icons.phone_outlined,
+                    ),
+                    InfoRow(
+                      'Email',
+                      student?.email ?? '—',
+                      icon: Icons.mail_outline,
+                    ),
+                    InfoRow(
+                      'Supervisor',
+                      internship.companySupervisorName,
+                      icon: Icons.badge_outlined,
+                    ),
+                    InfoRow(
+                      'Supervisor phone',
+                      internship.companySupervisorPhone,
+                      icon: Icons.call_outlined,
+                    ),
+                  ],
+                ),
+              ),
+              SectionCard(
+                title: 'Placement',
+                child: InfoPanel(
+                  rows: [
+                    InfoRow(
+                      'Company',
+                      internship.companyName,
+                      icon: Icons.apartment_outlined,
+                    ),
+                    InfoRow(
+                      'Address',
+                      internship.companyAddress,
+                      icon: Icons.place_outlined,
+                    ),
+                    InfoRow(
+                      'Location',
+                      [
+                        internship.state,
+                        internship.country,
+                      ].where((part) => part.isNotEmpty).join(', '),
+                      icon: Icons.map_outlined,
+                    ),
+                    InfoRow(
+                      'Dates',
+                      Formatters.dateRange(
+                        internship.startDate,
+                        internship.endDate,
+                      ),
+                      icon: Icons.date_range_outlined,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            secondary: [
+              StatGrid(
+                maxColumns: 3,
+                children: [
+                  StatTile(
+                    value: progress == null
+                        ? '–'
+                        : '${progress.attendanceDays}',
+                    label: 'Days attended',
+                    icon: Icons.event_available_outlined,
+                    tone: AppTone.sky,
+                    highlighted: true,
+                  ),
+                  StatTile(
+                    value: progress == null
+                        ? '–'
+                        : '${progress.logbookApproved}/${progress.logbookEntries}',
+                    label: 'Logbook approved',
+                    icon: Icons.menu_book_outlined,
+                    tone: AppTone.blush,
+                  ),
+                  StatTile(
+                    value: progress == null ? '–' : '${progress.visits}',
+                    label: 'Visits logged',
+                    icon: Icons.person_pin_circle_outlined,
+                  ),
+                ],
+              ),
+              SectionCard(
+                title: 'Attendance',
+                child: attendance.when(
+                  loading: () => const Shimmer(child: SkeletonBox(height: 300)),
+                  error: (error, stackTrace) => const Text(
+                    'Attendance couldn’t be loaded. Pull down to try again.',
+                  ),
+                  data: (records) => AttendanceCalendar(
+                    records: records,
+                    since: internship.activatedAt ?? internship.startDate,
+                  ),
+                ),
+              ),
+              SectionCard(
+                title: 'Visit history',
+                child: visits.when(
+                  loading: () => const Shimmer(child: SkeletonBox(height: 80)),
+                  error: (error, stackTrace) =>
+                      const Text('Visits couldn’t be loaded.'),
+                  data: (reports) => reports.isEmpty
+                      ? const AppEmptyState(
+                          compact: true,
+                          icon: Icons.person_pin_circle_outlined,
+                          title: 'No visits yet',
+                          message:
+                              'Reports you log for this student will be '
+                              'listed here.',
+                        )
+                      : Column(
+                          children: [
+                            for (final report in reports)
+                              _VisitTile(report: report),
+                          ],
+                        ),
+                ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppButton(
-          label: 'Submit Visit Report',
-          onPressed: () => context.push(
-            AppRoutes.visitReports,
-            extra: (internship, student),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 136,
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Expanded(child: Text(value)),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 }
 
-String _formatDate(DateTime value) {
-  return '${value.year.toString().padLeft(4, '0')}-'
-      '${value.month.toString().padLeft(2, '0')}-'
-      '${value.day.toString().padLeft(2, '0')}';
+class _VisitTile extends StatelessWidget {
+  const _VisitTile({required this.report});
+
+  final SupervisionReportModel report;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.inkSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '${report.visitDate.toLocal().day}',
+                  style: textTheme.titleMedium?.copyWith(color: AppColors.ink),
+                ),
+                Text(
+                  Formatters.month(report.visitDate.toLocal().month),
+                  style: textTheme.labelSmall?.copyWith(color: AppColors.ink),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    for (var i = 1; i <= 5; i++)
+                      Icon(
+                        i <= report.rating
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        size: 16,
+                        color: i <= report.rating
+                            ? AppColors.warning
+                            : AppColors.lineStrong,
+                      ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      Formatters.time(report.visitDate),
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  report.observation,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

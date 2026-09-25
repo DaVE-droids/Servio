@@ -2,46 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../internship/data/models/internship_model.dart';
-import '../../../profile/data/models/user_model.dart';
-import '../../domain/supervision_validator.dart';
+import '../../../lecturer/presentation/widgets/assigned_internship_builder.dart';
 import '../../data/models/supervision_report_request.dart';
+import '../../domain/supervision_validator.dart';
 import '../providers/supervision_providers.dart';
 
-/// Lecturer screen for submitting a supervision visit report (FR-SUP-004).
-class LecturerVisitReportScreen extends ConsumerStatefulWidget {
-  /// Creates the lecturer visit report screen.
-  const LecturerVisitReportScreen({
-    required this.internship,
-    required this.student,
-    super.key,
-  });
+/// Lecturer form for recording a supervision visit (FR-SUP-004).
+class LecturerVisitReportScreen extends ConsumerWidget {
+  /// Creates the visit report screen.
+  const LecturerVisitReportScreen({required this.internshipId, super.key});
 
-  /// The internship being visited.
-  final InternshipModel internship;
-
-  /// The student being visited.
-  final UserModel student;
+  /// The placement being visited, from the URL.
+  final String internshipId;
 
   @override
-  ConsumerState<LecturerVisitReportScreen> createState() =>
-      _LecturerVisitReportScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AssignedInternshipBuilder(
+      internshipId: internshipId,
+      builder: (context, internship) =>
+          _VisitReportForm(internship: internship),
+    );
+  }
 }
 
-class _LecturerVisitReportScreenState
-    extends ConsumerState<LecturerVisitReportScreen> {
+class _VisitReportForm extends ConsumerStatefulWidget {
+  const _VisitReportForm({required this.internship});
+
+  final InternshipModel internship;
+
+  @override
+  ConsumerState<_VisitReportForm> createState() => _VisitReportFormState();
+}
+
+class _VisitReportFormState extends ConsumerState<_VisitReportForm> {
   final _observationController = TextEditingController();
   final _recommendationsController = TextEditingController();
   final Map<String, String?> _errors = {};
-  DateTime? _visitDate;
-  TimeOfDay? _visitTime;
+  // Most reports are written during or straight after the visit, so "now"
+  // is the right starting point; the lecturer can change either.
+  DateTime _visitDate = DateTime.now();
+  TimeOfDay _visitTime = TimeOfDay.now();
   bool _studentPresent = true;
   bool _companyRepresentativePresent = true;
   int? _rating;
+
+  static const _ratingWords = [
+    'Poor',
+    'Needs improvement',
+    'Satisfactory',
+    'Good',
+    'Excellent',
+  ];
 
   @override
   void dispose() {
@@ -53,6 +73,8 @@ class _LecturerVisitReportScreenState
   @override
   Widget build(BuildContext context) {
     final formState = ref.watch(supervisionControllerProvider);
+    final textTheme = Theme.of(context).textTheme;
+    final internship = widget.internship;
 
     ref.listen(supervisionControllerProvider, (previous, next) {
       final message = next.errorMessage ?? next.successMessage;
@@ -63,82 +85,190 @@ class _LecturerVisitReportScreenState
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Submit Visit Report')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        children: [
-          Text(
-            'Visit Report for ${widget.student.firstName} ${widget.student.lastName}',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            widget.internship.companyName,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _DatePickerField(
-                  label: 'Visit Date',
-                  value: _visitDate,
-                  errorText: _errors['visitDate'],
-                  onTap: _selectDate,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _TimePickerField(
-                  label: 'Visit Time',
-                  value: _visitTime,
-                  onTap: _selectTime,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Student Present'),
-                  value: _studentPresent,
-                  onChanged: (value) =>
-                      setState(() => _studentPresent = value),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Company Representative Present'),
-                  value: _companyRepresentativePresent,
-                  onChanged: (value) =>
-                      setState(() => _companyRepresentativePresent = value),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppTextField(
-                  label: 'General Observation',
-                  controller: _observationController,
-                  maxLines: 4,
-                  errorText: _errors['observation'],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppTextField(
-                  label: 'Recommendations',
-                  controller: _recommendationsController,
-                  maxLines: 4,
-                  errorText: _errors['recommendations'],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                _RatingSelector(
-                  value: _rating,
-                  errorText: _errors['rating'],
-                  onChanged: (value) => setState(() => _rating = value),
-                ),
-              ],
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          children: [
+            AppCard(
+              child: Row(
+                children: [
+                  AppAvatar(name: internship.studentName, size: 48),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          internship.studentName,
+                          style: textTheme.titleMedium,
+                        ),
+                        Text(
+                          '${internship.companyName} · ${internship.state}',
+                          style: textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: 'Submit Report',
-            isLoading: formState.isSubmitting,
-            onPressed: _submit,
-          ),
-        ],
+            const SizedBox(height: AppSpacing.md),
+            SectionCard(
+              title: 'When',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _PickerField(
+                      label: 'Date',
+                      icon: Icons.calendar_today_outlined,
+                      value: Formatters.date(
+                        DateTime.utc(
+                          _visitDate.year,
+                          _visitDate.month,
+                          _visitDate.day,
+                        ),
+                      ),
+                      errorText: _errors['visitDate'],
+                      onTap: _selectDate,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _PickerField(
+                      label: 'Time',
+                      icon: Icons.schedule_outlined,
+                      value: _visitTime.format(context),
+                      onTap: _selectTime,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SectionCard(
+              title: 'Who was there',
+              child: Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  FilterChip(
+                    avatar: Icon(
+                      _studentPresent
+                          ? Icons.check_rounded
+                          : Icons.close_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Student'),
+                    selected: _studentPresent,
+                    onSelected: (value) =>
+                        setState(() => _studentPresent = value),
+                  ),
+                  FilterChip(
+                    avatar: Icon(
+                      _companyRepresentativePresent
+                          ? Icons.check_rounded
+                          : Icons.close_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Company representative'),
+                    selected: _companyRepresentativePresent,
+                    onSelected: (value) =>
+                        setState(() => _companyRepresentativePresent = value),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SectionCard(
+              title: 'Findings',
+              child: Column(
+                children: [
+                  AppTextField(
+                    label: 'What did you observe?',
+                    hintText:
+                        'The student’s tasks, conduct, working conditions…',
+                    controller: _observationController,
+                    maxLines: 5,
+                    minLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    errorText: _errors['observation'],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppTextField(
+                    label: 'Recommendations',
+                    hintText: 'What should the student or company do next?',
+                    controller: _recommendationsController,
+                    maxLines: 5,
+                    minLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    errorText: _errors['recommendations'],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SectionCard(
+              title: 'Overall rating',
+              trailing: _rating == null
+                  ? null
+                  : Text(
+                      _ratingWords[_rating! - 1],
+                      style: textTheme.titleSmall?.copyWith(
+                        color: AppColors.warning,
+                      ),
+                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      for (var rating = 1; rating <= 5; rating++)
+                        IconButton(
+                          tooltip:
+                              'Rate $rating out of 5, '
+                              '${_ratingWords[rating - 1].toLowerCase()}',
+                          iconSize: 34,
+                          onPressed: () => setState(() => _rating = rating),
+                          icon: Icon(
+                            _rating != null && rating <= _rating!
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: _rating != null && rating <= _rating!
+                                ? AppColors.warning
+                                : AppColors.lineStrong,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (_errors['rating'] != null)
+                    Text(
+                      _errors['rating']!,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label: 'Submit report',
+              isLoading: formState.isSubmitting,
+              onPressed: _submit,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Reports can’t be edited after they’re submitted, so they stay '
+              'a reliable record of the visit.',
+              textAlign: TextAlign.center,
+              style: textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+        ),
       ),
     );
   }
@@ -149,7 +279,7 @@ class _LecturerVisitReportScreenState
       context: context,
       firstDate: DateTime(now.year - 1),
       lastDate: now,
-      initialDate: _visitDate ?? now,
+      initialDate: _visitDate,
     );
     if (selected != null) {
       setState(() => _visitDate = selected);
@@ -159,7 +289,7 @@ class _LecturerVisitReportScreenState
   Future<void> _selectTime() async {
     final selected = await showTimePicker(
       context: context,
-      initialTime: _visitTime ?? TimeOfDay.now(),
+      initialTime: _visitTime,
     );
     if (selected != null) {
       setState(() => _visitTime = selected);
@@ -167,12 +297,18 @@ class _LecturerVisitReportScreenState
   }
 
   Future<void> _submit() async {
-    final visitDateTime = _combinedVisitDateTime();
+    final visitDateTime = DateTime(
+      _visitDate.year,
+      _visitDate.month,
+      _visitDate.day,
+      _visitTime.hour,
+      _visitTime.minute,
+    );
     final errors = {
       'visitDate': SupervisionValidator.visitDate(visitDateTime),
       'observation': SupervisionValidator.requiredText(
         _observationController.text,
-        'General observation',
+        'Observation',
       ),
       'recommendations': SupervisionValidator.requiredText(
         _recommendationsController.text,
@@ -189,15 +325,16 @@ class _LecturerVisitReportScreenState
       return;
     }
 
+    final internship = widget.internship;
     final report = await ref
         .read(supervisionControllerProvider.notifier)
         .submit(
-          internship: widget.internship,
-          studentName: '${widget.student.firstName} ${widget.student.lastName}',
-          studentMatricNumber: widget.student.matricNumber ?? '',
+          internship: internship,
+          studentName: internship.studentName,
+          studentMatricNumber: internship.studentMatricNumber,
           request: SupervisionReportRequest(
-            internshipId: widget.internship.internshipId,
-            visitDate: visitDateTime!,
+            internshipId: internship.internshipId,
+            visitDate: visitDateTime,
             studentPresent: _studentPresent,
             companyRepresentativePresent: _companyRepresentativePresent,
             observation: _observationController.text,
@@ -209,32 +346,20 @@ class _LecturerVisitReportScreenState
       context.pop();
     }
   }
-
-  DateTime? _combinedVisitDateTime() {
-    if (_visitDate == null) {
-      return null;
-    }
-    final time = _visitTime ?? TimeOfDay.now();
-    return DateTime(
-      _visitDate!.year,
-      _visitDate!.month,
-      _visitDate!.day,
-      time.hour,
-      time.minute,
-    );
-  }
 }
 
-class _DatePickerField extends StatelessWidget {
-  const _DatePickerField({
+class _PickerField extends StatelessWidget {
+  const _PickerField({
     required this.label,
+    required this.icon,
     required this.value,
     required this.onTap,
     this.errorText,
   });
 
   final String label;
-  final DateTime? value;
+  final IconData icon;
+  final String value;
   final VoidCallback onTap;
   final String? errorText;
 
@@ -242,80 +367,15 @@ class _DatePickerField extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, errorText: errorText),
-        child: Text(value == null ? 'Select date' : _formatDate(value!)),
+        decoration: InputDecoration(
+          labelText: label,
+          errorText: errorText,
+          prefixIcon: Icon(icon, size: 20),
+        ),
+        child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }
-}
-
-class _TimePickerField extends StatelessWidget {
-  const _TimePickerField({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String label;
-  final TimeOfDay? value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: InputDecorator(
-        decoration: InputDecoration(labelText: label),
-        child: Text(value == null ? 'Select time' : value!.format(context)),
-      ),
-    );
-  }
-}
-
-class _RatingSelector extends StatelessWidget {
-  const _RatingSelector({
-    required this.value,
-    required this.onChanged,
-    this.errorText,
-  });
-
-  final int? value;
-  final ValueChanged<int> onChanged;
-  final String? errorText;
-
-  @override
-  Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: 'Overall Rating',
-        errorText: errorText,
-      ),
-      child: Row(
-        children: List.generate(5, (index) {
-          final rating = index + 1;
-          return Expanded(
-            child: IconButton(
-              // Without a tooltip a screen reader announces five identical
-              // unlabeled "buttons"; this also gives each star a name.
-              tooltip: 'Rate $rating out of 5',
-              onPressed: () => onChanged(rating),
-              icon: Icon(
-                value != null && rating <= value!
-                    ? Icons.star
-                    : Icons.star_border,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-String _formatDate(DateTime value) {
-  return '${value.year.toString().padLeft(4, '0')}-'
-      '${value.month.toString().padLeft(2, '0')}-'
-      '${value.day.toString().padLeft(2, '0')}';
 }

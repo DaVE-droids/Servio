@@ -5,220 +5,221 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/enums/internship_status.dart';
+import '../../../../app/theme/app_tone.dart';
 import '../../../../core/providers/firebase_providers.dart';
-import '../../../../core/widgets/app_button.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_status_chip.dart';
+import '../../../../core/widgets/fade_slide_in.dart';
+import '../../../../core/widgets/journey_track.dart';
+import '../../../../core/widgets/placement_status_chip.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../supervision/presentation/providers/supervision_providers.dart';
 import '../providers/assigned_students_provider.dart';
 
-/// Lists placements currently assigned to the signed-in lecturer.
-class LecturerAssignedStudentsScreen extends ConsumerWidget {
+/// The lecturer's students: who they are, where they're placed, and — at a
+/// glance — who still needs a supervision visit.
+class LecturerAssignedStudentsScreen extends ConsumerStatefulWidget {
   /// Creates the lecturer assigned-students screen.
   const LecturerAssignedStudentsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LecturerAssignedStudentsScreen> createState() =>
+      _LecturerAssignedStudentsScreenState();
+}
+
+class _LecturerAssignedStudentsScreenState
+    extends ConsumerState<LecturerAssignedStudentsScreen> {
+  var _query = '';
+
+  @override
+  Widget build(BuildContext context) {
     final assignedStudentsValue = ref.watch(assignedStudentsProvider);
+    final lastVisits =
+        ref.watch(lastVisitByInternshipProvider).value ?? const {};
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Assigned Students')),
-      body: assignedStudentsValue.when(
-        loading: () => const AppLoading(message: 'Loading students...'),
-        error: (error, stackTrace) => AppErrorState(
-          message: 'Unable to load your assigned students. Please try again.',
-          onRetry: () => ref.invalidate(assignedStudentsProvider),
-        ),
-        data: (internships) {
-          if (internships.isEmpty) {
-            return const AppEmptyState(
-              title: 'No Assigned Students',
-              message:
-                  'Once a coordinator assigns a placement to you, it will appear here.',
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(assignedStudentsProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: internships.length,
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) =>
-                  _AssignedStudentCard(internship: internships[index]),
-            ),
-          );
-        },
+    return assignedStudentsValue.when(
+      loading: () => const AppLoading(),
+      error: (error, stackTrace) => AppErrorState(
+        message:
+            'Your students couldn’t be loaded. Check your connection and '
+            'try again.',
+        onRetry: () => ref.invalidate(assignedStudentsProvider),
       ),
-    );
-  }
-}
-
-class _AssignedStudentCard extends ConsumerWidget {
-  const _AssignedStudentCard({required this.internship});
-
-  final InternshipModel internship;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: InkWell(
-        onTap: () =>
-            context.push(AppRoutes.studentDetail, extra: internship),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _studentTitle(internship),
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  AppStatusChip(
-                    label: internship.status.label,
-                    type: _chipType(internship.status),
-                  ),
-                ],
-              ),
-              if (internship.studentMatricNumber.isNotEmpty)
-                Text(
-                  internship.studentMatricNumber,
-                  style: textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(internship.companyAddress, style: textTheme.bodyMedium),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                '${internship.department} • ${internship.state}, ${internship.country}',
-                style: textTheme.bodySmall,
-              ),
-              Text(internship.companyName, style: textTheme.bodySmall),
-              Text(
-                'Supervisor: ${internship.companySupervisorName} • ${internship.companySupervisorPhone}',
-                style: textTheme.bodySmall,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              _VisitIndicator(internshipId: internship.internshipId),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Navigate',
-                variant: AppButtonVariant.secondary,
-                onPressed: () => ref
-                    .read(mapsServiceProvider)
-                    .launchNavigation(
-                      latitude: internship.companyLatitude,
-                      longitude: internship.companyLongitude,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  AppStatusChipType _chipType(InternshipStatus status) {
-    return switch (status) {
-      InternshipStatus.assigned ||
-      InternshipStatus.active ||
-      InternshipStatus.completed => AppStatusChipType.success,
-      InternshipStatus.pendingReview => AppStatusChipType.warning,
-      InternshipStatus.rejected => AppStatusChipType.error,
-      InternshipStatus.approved => AppStatusChipType.info,
-      InternshipStatus.draft || InternshipStatus.archived =>
-        AppStatusChipType.neutral,
-    };
-  }
-}
-
-/// Shows at a glance whether this student has been visited, so a lecturer
-/// scanning the list can spot who still needs a visit without opening each
-/// student in turn.
-class _VisitIndicator extends ConsumerWidget {
-  const _VisitIndicator({required this.internshipId});
-
-  final String internshipId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lastVisits = ref.watch(lastVisitByInternshipProvider);
-    final textTheme = Theme.of(context).textTheme;
-
-    return lastVisits.when(
-      loading: () => Text('Checking visits...', style: textTheme.bodySmall),
-      error: (error, stackTrace) =>
-          Text('Visit status unavailable', style: textTheme.bodySmall),
-      data: (visits) {
-        final lastVisit = visits[internshipId];
-        if (lastVisit == null) {
-          return Row(
-            children: [
-              Icon(
-                Icons.person_search_outlined,
-                size: 16,
-                color: AppColors.warning,
-              ),
-              const SizedBox(width: AppSpacing.xxs),
-              Text(
-                'Not visited yet',
-                style: textTheme.bodySmall?.copyWith(
-                  color: AppColors.warning,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+      data: (internships) {
+        if (internships.isEmpty) {
+          return const AppEmptyState(
+            icon: Icons.groups_outlined,
+            title: 'No students assigned yet',
+            message:
+                'When a coordinator assigns a placement to you, the student '
+                'will appear here.',
           );
         }
-        return Row(
-          children: [
-            Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
-            const SizedBox(width: AppSpacing.xxs),
-            Text(
-              'Last visited ${_formatDate(lastVisit)}',
-              style: textTheme.bodySmall?.copyWith(color: AppColors.success),
-            ),
-          ],
+
+        final matches = internships.where((internship) {
+          if (_query.isEmpty) {
+            return true;
+          }
+          return [
+            internship.studentName,
+            internship.studentMatricNumber,
+            internship.companyName,
+            internship.state,
+          ].join(' ').toLowerCase().contains(_query);
+        }).toList();
+        final notVisited = internships
+            .where(
+              (internship) => !lastVisits.containsKey(internship.internshipId),
+            )
+            .length;
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref
+              ..invalidate(assignedStudentsProvider)
+              ..invalidate(lecturerReportsProvider);
+          },
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search by name, matric number, or company',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+                onChanged: (value) =>
+                    setState(() => _query = value.trim().toLowerCase()),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '${Formatters.count(internships.length, 'student')}'
+                '${notVisited == 0 ? ' · all visited' : ' · $notVisited not visited yet'}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (matches.isEmpty)
+                const AppEmptyState(
+                  compact: true,
+                  icon: Icons.search_off_rounded,
+                  title: 'No matches',
+                  message: 'Try a different name, matric number, or company.',
+                ),
+              for (var i = 0; i < matches.length; i++) ...[
+                FadeSlideIn(
+                  index: i,
+                  child: _StudentCard(
+                    internship: matches[i],
+                    lastVisit: lastVisits[matches[i].internshipId],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+              ],
+            ],
+          ),
         );
       },
     );
   }
 }
 
-String _formatDate(DateTime value) {
-  return '${value.year.toString().padLeft(4, '0')}-'
-      '${value.month.toString().padLeft(2, '0')}-'
-      '${value.day.toString().padLeft(2, '0')}';
-}
+class _StudentCard extends ConsumerWidget {
+  const _StudentCard({required this.internship, required this.lastVisit});
 
-/// The card's headline: the student's name, falling back to their matric
-/// number and then their raw ID for placements submitted before the name
-/// was denormalized onto `internships`. The matric number renders on its
-/// own line rather than being appended here, so the headline always fits
-/// on one line beside the status chip.
-String _studentTitle(InternshipModel internship) {
-  if (internship.studentName.isNotEmpty) {
-    return internship.studentName;
+  final InternshipModel internship;
+  final DateTime? lastVisit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final name = internship.studentName.isNotEmpty
+        ? internship.studentName
+        : internship.studentMatricNumber;
+
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      onTap: () => context.push(
+        AppRoutes.lecturerStudentDetail(internship.internshipId),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              AppAvatar(name: name, size: 44),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleMedium,
+                    ),
+                    Text(
+                      [
+                        if (internship.studentMatricNumber.isNotEmpty)
+                          internship.studentMatricNumber,
+                        internship.companyName,
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              IconButton(
+                tooltip: 'Directions to ${internship.companyName}',
+                onPressed: () => ref
+                    .read(mapsServiceProvider)
+                    .launchNavigation(
+                      latitude: internship.companyLatitude,
+                      longitude: internship.companyLongitude,
+                    ),
+                icon: const Icon(Icons.near_me_outlined, color: AppColors.ink),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    PlacementStatusChip(status: internship.status),
+                    lastVisit == null
+                        ? const AppStatusChip(
+                            label: 'Not visited',
+                            tone: AppTone.warning,
+                            icon: Icons.person_pin_circle_outlined,
+                          )
+                        : AppStatusChip(
+                            label: 'Visited ${Formatters.relative(lastVisit!)}',
+                            tone: AppTone.ink,
+                            icon: Icons.check_rounded,
+                          ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 84,
+                child: JourneyTrack.compact(status: internship.status),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
-  if (internship.studentMatricNumber.isNotEmpty) {
-    return internship.studentMatricNumber;
-  }
-  return 'Student ${internship.studentId}';
 }
