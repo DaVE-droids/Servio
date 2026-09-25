@@ -1,0 +1,46 @@
+/* Styles for the static legal pages, matching the app's look without
+   loading the app. System fonts keep these pages fast and dependency-free. */
+:root {
+  --ink: #16365C;
+  --text: #0F2742;
+  --muted: #5A6A7F;
+  --line: #E3E8EF;
+  --mist: #F3F5F9;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--mist);
+  color: var(--text);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+header, main, footer { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+header { padding-top: 28px; }
+.brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 800; font-size: 20px; letter-spacing: -0.4px;
+  color: var(--ink); text-decoration: none;
+}
+main {
+  margin-top: 28px; padding: 40px;
+  background: #fff; border: 1px solid var(--line); border-radius: 20px;
+}
+.eyebrow {
+  margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
+h1 { margin: 4px 0 0; font-size: 34px; letter-spacing: -0.8px; line-height: 1.15; }
+.meta { margin-top: 6px; color: var(--muted); }
+h2 { margin-top: 36px; font-size: 20px; letter-spacing: -0.3px; }
+a { color: var(--ink); font-weight: 600; }
+ul { padding-left: 22px; }
+li { margin: 6px 0; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+footer { padding-top: 20px; padding-bottom: 40px; color: var(--muted); font-size: 14px; }
+@media (max-width: 600px) {
+  main { padding: 24px; border-radius: 16px; }
+  h1 { font-size: 28px; }
+  th, td { padding: 8px 6px; }
+}

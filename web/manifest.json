@@ -1,14 +1,23 @@
 {
-    "name": "servio",
-    "short_name": "servio",
-    "start_url": ".",
+    "name": "Servio",
+    "short_name": "Servio",
+    "id": "/",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A Flutter & Firebase internship management platform that streamlines student placements, attendance, digital logbooks, lecturer supervision, and coordinator administration.",
-    "orientation": "portrait-primary",
+    "background_color": "#FFFFFF",
+    "theme_color": "#F3F5F9",
+    "description": "Field placements, from first form to final sign-off: attendance, daily logbooks, lecturer supervision, and coordinator administration.",
+    "orientation": "any",
+    "lang": "en",
+    "categories": ["education", "productivity"],
     "prefer_related_applications": false,
     "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        },
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",

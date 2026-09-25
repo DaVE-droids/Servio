@@ -1,0 +1,7 @@
+# Servio is a signed-in app: only the sign-in page and the legal pages are
+# useful in search results.
+User-agent: *
+Allow: /$
+Allow: /privacy.html
+Allow: /terms.html
+Disallow: /
