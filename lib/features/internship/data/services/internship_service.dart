@@ -36,7 +36,9 @@ class InternshipService {
     required Map<String, dynamic> data,
     Map<String, dynamic>? auditEvent,
   }) {
-    final internshipRef = _firestore.collection('internships').doc(internshipId);
+    final internshipRef = _firestore
+        .collection('internships')
+        .doc(internshipId);
     if (auditEvent == null) {
       return internshipRef.set(data);
     }

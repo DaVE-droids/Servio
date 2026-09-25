@@ -10,7 +10,10 @@ class GetAttendanceHistoryUseCase {
   final AttendanceRepository _repository;
 
   /// Executes the lookup.
-  Future<Result<List<AttendanceModel>>> call(String studentId) {
-    return _repository.getAttendanceHistory(studentId);
+  Future<Result<List<AttendanceModel>>> call(
+    String studentId, {
+    String? lecturerId,
+  }) {
+    return _repository.getAttendanceHistory(studentId, lecturerId: lecturerId);
   }
 }

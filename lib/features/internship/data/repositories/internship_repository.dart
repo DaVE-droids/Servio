@@ -277,10 +277,11 @@ class InternshipRepository {
   ) async {
     try {
       final snapshot = await _service.getAssignedInternships(lecturerId);
-      final internships = snapshot.docs
-          .map((doc) => InternshipModel.fromJson(doc.data()))
-          .toList()
-        ..sort((a, b) => a.companyName.compareTo(b.companyName));
+      final internships =
+          snapshot.docs
+              .map((doc) => InternshipModel.fromJson(doc.data()))
+              .toList()
+            ..sort((a, b) => a.companyName.compareTo(b.companyName));
       return Success(internships);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));
@@ -293,12 +294,15 @@ class InternshipRepository {
   Future<Result<List<InternshipModel>>> getReadyToStartInternships() async {
     try {
       final snapshot = await _service.getReadyToStartInternships();
-      final internships = snapshot.docs
-          .map((doc) => InternshipModel.fromJson(doc.data()))
-          .toList()
-        ..sort((a, b) => (a.assignedAt ?? a.updatedAt).compareTo(
-          b.assignedAt ?? b.updatedAt,
-        ));
+      final internships =
+          snapshot.docs
+              .map((doc) => InternshipModel.fromJson(doc.data()))
+              .toList()
+            ..sort(
+              (a, b) => (a.assignedAt ?? a.updatedAt).compareTo(
+                b.assignedAt ?? b.updatedAt,
+              ),
+            );
       return Success(internships);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));

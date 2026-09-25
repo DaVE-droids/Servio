@@ -4,27 +4,33 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_radii.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
 import '../../../../core/enums/internship_status.dart';
 import '../../../../core/enums/logbook_status.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
-import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
-import '../../../../core/widgets/dashboard_summary_card.dart';
+import '../../../../core/widgets/fade_slide_in.dart';
+import '../../../../core/widgets/stat_tile.dart';
 import '../../../attendance/presentation/controllers/attendance_state.dart';
 import '../../../attendance/presentation/providers/attendance_providers.dart';
-import '../../../internship/presentation/controllers/internship_state.dart';
+import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
+import '../../../internship/presentation/widgets/placement_journey_card.dart';
 import '../../../logbook/presentation/controllers/logbook_state.dart';
 import '../../../logbook/presentation/providers/logbook_providers.dart';
-import '../../../notifications/presentation/controllers/notifications_state.dart';
+import '../../../notifications/data/models/notification_model.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
-import '../../../profile/data/models/user_model.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../reports/presentation/providers/reports_providers.dart';
 
-/// Student dashboard showing the current user's placement overview.
+/// The student's home: where their placement is on its journey, today's
+/// attendance and logbook (with the actions right there), and progress
+/// once the internship is running.
 class StudentDashboardScreen extends ConsumerWidget {
   /// Creates the student dashboard screen.
   const StudentDashboardScreen({super.key});
@@ -33,69 +39,118 @@ class StudentDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileValue = ref.watch(profileControllerProvider);
     final internshipValue = ref.watch(internshipControllerProvider);
-    final attendanceValue = ref.watch(attendanceControllerProvider);
-    final logbookValue = ref.watch(logbookControllerProvider);
-    final notificationsValue = ref.watch(notificationsControllerProvider);
 
-    return profileValue.when(
-      loading: () => const AppLoading(message: 'Loading dashboard...'),
-      error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load your dashboard. Please try again.',
-        onRetry: () => ref.read(profileControllerProvider.notifier).refresh(),
+    if ((profileValue.isLoading && !profileValue.hasValue) ||
+        (internshipValue.isLoading && !internshipValue.hasValue)) {
+      return const AppLoading(layout: AppLoadingLayout.dashboard);
+    }
+    if (internshipValue.hasError && !internshipValue.hasValue) {
+      return AppErrorState(
+        message:
+            'Your dashboard couldn’t be loaded. Check your connection '
+            'and try again.',
+        onRetry: () =>
+            ref.read(internshipControllerProvider.notifier).refresh(),
+      );
+    }
+
+    final user = profileValue.value?.user;
+    final internship = internshipValue.value?.currentInternship;
+    final isActive = internship?.status == InternshipStatus.active;
+    final textTheme = Theme.of(context).textTheme;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(internshipControllerProvider.notifier).refresh();
+        ref
+          ..invalidate(notificationsControllerProvider)
+          ..invalidate(internshipProgressProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          FadeSlideIn(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  Formatters.day(Formatters.todayUtc()).toUpperCase(),
+                  style: textTheme.labelSmall,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user == null
+                      ? Formatters.greeting()
+                      : '${Formatters.greeting()}, ${user.firstName}',
+                  style: textTheme.headlineMedium,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          FadeSlideIn(
+            index: 1,
+            child: PlacementJourneyCard(
+              internship: internship,
+              action: internship == null
+                  ? AppButton(
+                      label: 'Submit my placement',
+                      icon: Icons.arrow_forward_rounded,
+                      onPressed: () => context.go(AppRoutes.internship),
+                    )
+                  : null,
+            ),
+          ),
+          if (isActive) ...[
+            const SizedBox(height: AppSpacing.md),
+            const FadeSlideIn(index: 2, child: _TodayRow()),
+            const SizedBox(height: AppSpacing.md),
+            FadeSlideIn(
+              index: 3,
+              child: _ProgressTiles(internship: internship!),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          const FadeSlideIn(index: 4, child: _RecentNotifications()),
+          const SizedBox(height: AppSpacing.xl),
+        ],
       ),
-      data: (profileState) {
-        final user = profileState.user;
-        if (user == null) {
-          return AppEmptyState(
-            title: 'Dashboard unavailable',
-            message:
-                profileState.errorMessage ??
-                'Your student profile could not be loaded.',
-            actionLabel: 'Retry',
-            onActionPressed: () =>
-                ref.read(profileControllerProvider.notifier).refresh(),
+    );
+  }
+}
+
+/// Today's two jobs, side by side on wide screens: attendance and the
+/// logbook entry. Check-in and check-out happen right here.
+class _TodayRow extends ConsumerWidget {
+  const _TodayRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final attendance = ref.watch(attendanceControllerProvider);
+    final logbook = ref.watch(logbookControllerProvider);
+
+    final cards = [
+      _AttendanceTodayCard(value: attendance),
+      _LogbookTodayCard(value: logbook),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 640) {
+          return Column(
+            children: [
+              cards[0],
+              const SizedBox(height: AppSpacing.md),
+              cards[1],
+            ],
           );
         }
-
-        return RefreshIndicator(
-          onRefresh: () =>
-              ref.read(profileControllerProvider.notifier).refresh(),
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _DashboardHeader(user: user),
-              const SizedBox(height: AppSpacing.md),
-              _DashboardGrid(
-                internshipValue: internshipValue,
-                attendanceValue: attendanceValue,
-                logbookValue: logbookValue,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _RecentNotificationsCard(value: notificationsValue),
-              const SizedBox(height: AppSpacing.md),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Quick Access',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Keep your student profile current so coordinators and lecturers see accurate information.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AppButton(
-                      label: 'Open Profile',
-                      variant: AppButtonVariant.secondary,
-                      onPressed: () => context.go(AppRoutes.profile),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
+              Expanded(child: cards[0]),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: cards[1]),
             ],
           ),
         );
@@ -104,354 +159,319 @@ class StudentDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardGrid extends StatelessWidget {
-  const _DashboardGrid({
-    required this.internshipValue,
-    required this.attendanceValue,
-    required this.logbookValue,
+class _TodayCard extends StatelessWidget {
+  const _TodayCard({
+    required this.tone,
+    required this.icon,
+    required this.label,
+    required this.headline,
+    required this.detail,
+    this.action,
   });
 
-  final AsyncValue<InternshipState> internshipValue;
-  final AsyncValue<AttendanceState> attendanceValue;
-  final AsyncValue<LogbookState> logbookValue;
-
-  /// Fixed card height. Chosen to comfortably fit an icon/title row, a
-  /// value line, a two-line description, and an optional action button —
-  /// a childAspectRatio-based height previously overflowed on narrow
-  /// screens once a card's button was showing.
-  static const _cardHeight = 210.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth >= 1024
-            ? 3
-            : constraints.maxWidth >= 600
-            ? 2
-            : 1;
-        final cards = [
-          _internshipCard(context),
-          _attendanceCard(context),
-          _logbookCard(context),
-        ];
-        return GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: AppSpacing.sm,
-            mainAxisSpacing: AppSpacing.sm,
-            mainAxisExtent: _cardHeight,
-          ),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: cards.length,
-          itemBuilder: (context, index) => cards[index],
-        );
-      },
-    );
-  }
-
-  Widget _attendanceCard(BuildContext context) {
-    return attendanceValue.when(
-      loading: () => const DashboardSummaryCard(
-        title: "Today's Attendance",
-        value: 'Loading...',
-        description: 'Checking your attendance status.',
-        icon: Icons.fact_check_outlined,
-        color: AppColors.information,
-      ),
-      error: (error, stackTrace) => const DashboardSummaryCard(
-        title: "Today's Attendance",
-        value: 'Unavailable',
-        description: 'Unable to load your attendance status right now.',
-        icon: Icons.fact_check_outlined,
-        color: AppColors.error,
-      ),
-      data: (state) {
-        final today = state.today;
-        if (today == null) {
-          final isActive = switch (internshipValue) {
-            AsyncData(:final value) =>
-              value.currentInternship?.status == InternshipStatus.active,
-            _ => false,
-          };
-          return DashboardSummaryCard(
-            title: "Today's Attendance",
-            value: 'Not checked in',
-            description: isActive
-                ? "You haven't checked in today."
-                : 'Check in once your internship is active.',
-            icon: Icons.fact_check_outlined,
-            color: AppColors.warning,
-            actionLabel: 'View',
-            onActionPressed: () => context.go(AppRoutes.attendance),
-          );
-        }
-        final checkedOut = today.checkOutTime != null;
-        return DashboardSummaryCard(
-          title: "Today's Attendance",
-          value: checkedOut ? 'Completed' : 'Checked in',
-          description: checkedOut
-              ? 'Checked in and out for today.'
-              : "Checked in — don't forget to check out.",
-          icon: Icons.fact_check_outlined,
-          color: checkedOut ? AppColors.success : AppColors.information,
-          actionLabel: 'View',
-          onActionPressed: () => context.go(AppRoutes.attendance),
-        );
-      },
-    );
-  }
-
-  /// Today's logbook entry at a glance, so a student sees what's still
-  /// outstanding without opening the logbook tab.
-  Widget _logbookCard(BuildContext context) {
-    const title = "Today's Logbook";
-    const icon = Icons.menu_book_outlined;
-    final isActive = switch (internshipValue) {
-      AsyncData(:final value) =>
-        value.currentInternship?.status == InternshipStatus.active,
-      _ => false,
-    };
-    if (!isActive) {
-      return const DashboardSummaryCard(
-        title: title,
-        value: 'Not open yet',
-        description: 'Your logbook opens once your internship is active.',
-        icon: icon,
-        color: AppColors.secondary,
-      );
-    }
-
-    return logbookValue.when(
-      loading: () => const DashboardSummaryCard(
-        title: title,
-        value: 'Loading...',
-        description: "Checking today's entry.",
-        icon: icon,
-        color: AppColors.information,
-      ),
-      error: (error, stackTrace) => const DashboardSummaryCard(
-        title: title,
-        value: 'Unavailable',
-        description: 'Unable to load your logbook right now.',
-        icon: icon,
-        color: AppColors.error,
-      ),
-      data: (state) {
-        final (value, description, color, action) = switch (state.today?.status) {
-          null => (
-            'Not written yet',
-            "Record what you did today before you finish.",
-            AppColors.warning,
-            'Write Entry',
-          ),
-          LogbookStatus.pending => (
-            'Awaiting review',
-            'Your lecturer has not reviewed today\'s entry yet.',
-            AppColors.information,
-            'View',
-          ),
-          LogbookStatus.changesRequested => (
-            'Changes requested',
-            'Your lecturer asked you to update this entry.',
-            AppColors.warning,
-            'Edit Entry',
-          ),
-          LogbookStatus.approved => (
-            'Approved',
-            "Today's entry has been approved.",
-            AppColors.success,
-            'View',
-          ),
-        };
-        return DashboardSummaryCard(
-          title: title,
-          value: value,
-          description: description,
-          icon: icon,
-          color: color,
-          actionLabel: action,
-          onActionPressed: () => context.go(AppRoutes.logbook),
-        );
-      },
-    );
-  }
-
-  Widget _internshipCard(BuildContext context) {
-    return internshipValue.when(
-      loading: () => const DashboardSummaryCard(
-        title: 'Current Internship',
-        value: 'Loading...',
-        description: 'Checking your submitted placement status.',
-        icon: Icons.business_center_outlined,
-        color: AppColors.information,
-      ),
-      error: (error, stackTrace) => const DashboardSummaryCard(
-        title: 'Current Internship',
-        value: 'Unavailable',
-        description: 'Unable to load your placement status right now.',
-        icon: Icons.business_center_outlined,
-        color: AppColors.error,
-      ),
-      data: (state) {
-        final internship = state.currentInternship;
-        if (internship == null) {
-          return DashboardSummaryCard(
-            title: 'Current Internship',
-            value: 'Not submitted yet',
-            description:
-                'Submit your placement details for coordinator review.',
-            icon: Icons.business_center_outlined,
-            color: AppColors.warning,
-            actionLabel: 'Submit',
-            onActionPressed: () => context.push(AppRoutes.internship),
-          );
-        }
-        return DashboardSummaryCard(
-          title: 'Current Internship',
-          value: internship.status.label,
-          description: '${internship.companyName} • ${internship.state}',
-          icon: Icons.business_center_outlined,
-          color: _statusColor(internship.status),
-          actionLabel: 'View',
-          onActionPressed: () => context.push(AppRoutes.internship),
-        );
-      },
-    );
-  }
-
-  Color _statusColor(InternshipStatus status) {
-    return switch (status) {
-      InternshipStatus.pendingReview => AppColors.warning,
-      InternshipStatus.approved ||
-      InternshipStatus.assigned ||
-      InternshipStatus.active ||
-      InternshipStatus.completed => AppColors.success,
-      InternshipStatus.rejected => AppColors.error,
-      InternshipStatus.draft ||
-      InternshipStatus.archived => AppColors.secondary,
-    };
-  }
-}
-
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({required this.user});
-
-  final UserModel user;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Hello, ${user.firstName}',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          '${user.department}${user.matricNumber == null ? '' : ' • ${user.matricNumber}'}',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ],
-    );
-  }
-}
-
-/// The student's three most recent notifications, with a way to see the
-/// rest. Unread ones are shown in bold with a dot.
-class _RecentNotificationsCard extends StatelessWidget {
-  const _RecentNotificationsCard({required this.value});
-
-  final AsyncValue<NotificationsState> value;
+  final AppTone tone;
+  final IconData icon;
+  final String label;
+  final String headline;
+  final String detail;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final notifications = switch (value) {
-      AsyncData(:final value) => value.notifications,
-      _ => null,
-    };
-    final recent = notifications?.take(3).toList() ?? const [];
-
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.notifications_outlined,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text('Recent Notifications', style: textTheme.titleMedium),
-              ),
-              if (recent.isNotEmpty)
-                TextButton(
-                  onPressed: () => context.go(AppRoutes.notifications),
-                  child: const Text('View all'),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: tone.fill,
+                  borderRadius: BorderRadius.circular(AppRadii.control),
                 ),
+                child: Icon(icon, size: 19, color: AppColors.inkDeep),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(label.toUpperCase(), style: textTheme.labelSmall),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          if (notifications == null)
-            Text('Loading notifications...', style: textTheme.bodyMedium)
-          else if (recent.isEmpty)
-            Text(
-              'No notifications yet. Updates about your placement, logbook, '
-              'and supervision visits will appear here.',
-              style: textTheme.bodyMedium,
-            )
-          else
-            for (final notification in recent)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: notification.isRead
-                              ? Colors.transparent
-                              : AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            notification.title,
-                            style: textTheme.bodyMedium?.copyWith(
-                              fontWeight: notification.isRead
-                                  ? FontWeight.w400
-                                  : FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            notification.message,
-                            style: textTheme.bodySmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(headline, style: textTheme.titleLarge),
+          const SizedBox(height: 2),
+          Text(detail, style: textTheme.bodySmall),
+          if (action != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            action!,
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _AttendanceTodayCard extends ConsumerWidget {
+  const _AttendanceTodayCard({required this.value});
+
+  final AsyncValue<AttendanceState> value;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    const label = 'Attendance today';
+    final state = value.value;
+    if (state == null) {
+      return _TodayCard(
+        tone: AppTone.sky,
+        icon: Icons.event_available_outlined,
+        label: label,
+        headline: value.hasError ? 'Unavailable' : 'Checking…',
+        detail: value.hasError
+            ? 'Pull down to try again.'
+            : 'Looking up today’s record.',
+      );
+    }
+    final today = state.today;
+    final controller = ref.read(attendanceControllerProvider.notifier);
+
+    if (today == null) {
+      return _TodayCard(
+        tone: AppTone.sky,
+        icon: Icons.event_available_outlined,
+        label: label,
+        headline: 'Not checked in',
+        detail: 'Check in when you arrive at work.',
+        action: AppButton(
+          label: 'Check in',
+          icon: Icons.login_rounded,
+          isLoading: state.isProcessing,
+          onPressed: controller.checkIn,
+        ),
+      );
+    }
+    if (today.checkOutTime == null) {
+      return _TodayCard(
+        tone: AppTone.sky,
+        icon: Icons.event_available_outlined,
+        label: label,
+        headline: 'Checked in at ${Formatters.time(today.checkInTime)}',
+        detail: 'Remember to check out before you leave.',
+        action: AppButton(
+          label: 'Check out',
+          icon: Icons.logout_rounded,
+          variant: AppButtonVariant.secondary,
+          isLoading: state.isProcessing,
+          onPressed: controller.checkOut,
+        ),
+      );
+    }
+    return _TodayCard(
+      tone: AppTone.sky,
+      icon: Icons.event_available_outlined,
+      label: label,
+      headline: 'Done for today',
+      detail:
+          '${Formatters.time(today.checkInTime)} – '
+          '${Formatters.time(today.checkOutTime!)}',
+    );
+  }
+}
+
+class _LogbookTodayCard extends StatelessWidget {
+  const _LogbookTodayCard({required this.value});
+
+  final AsyncValue<LogbookState> value;
+
+  @override
+  Widget build(BuildContext context) {
+    const label = 'Logbook today';
+    final state = value.value;
+    if (state == null) {
+      return _TodayCard(
+        tone: AppTone.blush,
+        icon: Icons.menu_book_outlined,
+        label: label,
+        headline: value.hasError ? 'Unavailable' : 'Checking…',
+        detail: value.hasError
+            ? 'Pull down to try again.'
+            : 'Looking up today’s entry.',
+      );
+    }
+    final entry = state.today;
+    final (headline, detail, actionLabel, primary) = switch (entry?.status) {
+      null => (
+        'Not written yet',
+        'Record what you worked on before you finish.',
+        'Write today’s entry',
+        true,
+      ),
+      LogbookStatus.pending => (
+        'Waiting for review',
+        'You can still edit it until your lecturer reviews it.',
+        'Open entry',
+        false,
+      ),
+      LogbookStatus.changesRequested => (
+        'Changes requested',
+        'Your lecturer left a note on this entry.',
+        'Update entry',
+        true,
+      ),
+      LogbookStatus.approved => (
+        'Approved',
+        'Your lecturer approved today’s entry.',
+        'Open logbook',
+        false,
+      ),
+    };
+    return _TodayCard(
+      tone: AppTone.blush,
+      icon: Icons.menu_book_outlined,
+      label: label,
+      headline: headline,
+      detail: detail,
+      action: AppButton(
+        label: actionLabel,
+        variant: primary
+            ? AppButtonVariant.primary
+            : AppButtonVariant.secondary,
+        onPressed: () => context.go(AppRoutes.logbook),
+      ),
+    );
+  }
+}
+
+class _ProgressTiles extends ConsumerWidget {
+  const _ProgressTiles({required this.internship});
+
+  final InternshipModel internship;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref
+        .watch(internshipProgressProvider(internship.internshipId))
+        .value;
+    final today = Formatters.todayUtc();
+    final end = internship.endDate.toUtc();
+    final daysLeft = DateTime.utc(
+      end.year,
+      end.month,
+      end.day,
+    ).difference(today).inDays;
+
+    return StatGrid(
+      maxColumns: 3,
+      children: [
+        StatTile(
+          value: progress == null ? '–' : '${progress.attendanceDays}',
+          label: 'Days attended',
+          icon: Icons.event_available_outlined,
+          tone: AppTone.sky,
+          onTap: () => context.go(AppRoutes.attendance),
+        ),
+        StatTile(
+          value: progress == null ? '–' : '${progress.logbookApproved}',
+          label: 'Entries approved',
+          icon: Icons.menu_book_outlined,
+          tone: AppTone.blush,
+          onTap: () => context.go(AppRoutes.logbook),
+        ),
+        StatTile(
+          value: daysLeft < 0 ? '0' : '$daysLeft',
+          label: daysLeft == 1 ? 'Day to go' : 'Days to go',
+          icon: Icons.flag_outlined,
+          caption: 'Ends ${Formatters.date(internship.endDate)}',
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentNotifications extends ConsumerWidget {
+  const _RecentNotifications();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final value = ref.watch(notificationsControllerProvider);
+    final notifications = value.value?.notifications;
+    final recent =
+        notifications?.take(3).toList() ?? const <NotificationModel>[];
+    final textTheme = Theme.of(context).textTheme;
+
+    return SectionCard(
+      title: 'Latest updates',
+      trailing: recent.isEmpty
+          ? null
+          : TextButton(
+              onPressed: () => context.push(AppRoutes.notifications),
+              child: const Text('View all'),
+            ),
+      child: notifications == null
+          ? const SizedBox(height: 48)
+          : recent.isEmpty
+          ? Text(
+              'Nothing yet. Decisions about your placement, logbook reviews, '
+              'and visit reports will show up here.',
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            )
+          : Column(
+              children: [
+                for (final notification in recent)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: notification.isRead
+                                  ? AppColors.line
+                                  : AppColors.blushStrong,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                notification.title,
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: notification.isRead
+                                      ? FontWeight.w500
+                                      : FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                notification.message,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          Formatters.relative(notification.createdAt),
+                          style: textTheme.labelMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/models/attendance_model.dart';
+import '../../../../core/result/result.dart';
 
+import '../../../../core/enums/user_role.dart';
 import '../../../../core/providers/firebase_providers.dart';
+import '../../../authentication/presentation/providers/authentication_providers.dart';
 import '../../data/repositories/attendance_repository.dart';
 import '../../data/services/attendance_service.dart';
 import '../../domain/use_cases/check_in_use_case.dart';
@@ -50,3 +54,22 @@ final attendanceControllerProvider =
     AsyncNotifierProvider<AttendanceController, AttendanceState>(
       AttendanceController.new,
     );
+
+/// One student's recent attendance, for lecturers and coordinators looking
+/// at that student. Cached while any screen shows it.
+final studentAttendanceProvider = FutureProvider.autoDispose
+    .family<List<AttendanceModel>, String>((ref, studentId) async {
+      final session = ref.watch(authSessionProvider).value;
+      final result = await ref
+          .watch(getAttendanceHistoryUseCaseProvider)
+          .call(
+            studentId,
+            lecturerId: session?.role == UserRole.lecturer
+                ? session?.uid
+                : null,
+          );
+      return switch (result) {
+        Success(:final data) => data,
+        Failure(:final error) => throw error,
+      };
+    });

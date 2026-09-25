@@ -136,10 +136,14 @@ class AttendanceRepository {
 
   /// Retrieves recent attendance history for a student.
   Future<Result<List<AttendanceModel>>> getAttendanceHistory(
-    String studentId,
-  ) async {
+    String studentId, {
+    String? lecturerId,
+  }) async {
     try {
-      final snapshot = await _service.getAttendanceHistory(studentId);
+      final snapshot = await _service.getAttendanceHistory(
+        studentId,
+        lecturerId: lecturerId,
+      );
       final records = snapshot.docs
           .map((doc) => AttendanceModel.fromJson(doc.data()))
           .toList();

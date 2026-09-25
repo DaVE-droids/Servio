@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
 import '../../../../core/enums/attendance_status.dart';
 import '../../../../core/enums/internship_status.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_status_chip.dart';
+import '../../../../core/widgets/fade_slide_in.dart';
+import '../../../../core/widgets/responsive_columns.dart';
+import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../data/models/attendance_model.dart';
 import '../controllers/attendance_state.dart';
 import '../providers/attendance_providers.dart';
+import '../widgets/attendance_calendar.dart';
 
-/// Student screen for daily check-in/check-out and attendance history.
+/// Student attendance: check in and out for today, and the month's record
+/// as a stamp calendar.
 class StudentAttendanceScreen extends ConsumerWidget {
   /// Creates the student attendance screen.
   const StudentAttendanceScreen({super.key});
@@ -26,10 +34,7 @@ class StudentAttendanceScreen extends ConsumerWidget {
     final attendanceValue = ref.watch(attendanceControllerProvider);
 
     ref.listen(attendanceControllerProvider, (previous, next) {
-      final state = switch (next) {
-        AsyncData(:final value) => value,
-        _ => null,
-      };
+      final state = next.value;
       final message = state?.errorMessage ?? state?.successMessage;
       if (message != null) {
         ScaffoldMessenger.of(
@@ -39,37 +44,49 @@ class StudentAttendanceScreen extends ConsumerWidget {
     });
 
     return internshipValue.when(
-      loading: () => const AppLoading(message: 'Loading attendance...'),
+      loading: () => const AppLoading(layout: AppLoadingLayout.dashboard),
       error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load your internship. Please try again.',
-        onRetry: () => ref.read(internshipControllerProvider.notifier).refresh(),
+        message:
+            'Your placement couldn’t be loaded. Check your connection '
+            'and try again.',
+        onRetry: () =>
+            ref.read(internshipControllerProvider.notifier).refresh(),
       ),
       data: (internshipState) {
         final internship = internshipState.currentInternship;
         if (internship?.status == InternshipStatus.completed) {
           return const AppEmptyState(
-            title: 'Internship Completed',
+            icon: Icons.verified_outlined,
+            tone: AppTone.success,
+            title: 'Internship completed',
             message:
-                'Your internship has been completed, so attendance is closed. '
-                'Your attendance records are kept.',
+                'Attendance is closed now that your internship is over. Your '
+                'records are kept.',
           );
         }
-        if (internship == null || internship.status != InternshipStatus.active) {
+        if (internship == null ||
+            internship.status != InternshipStatus.active) {
           return const AppEmptyState(
-            title: 'Attendance Unavailable',
+            icon: Icons.event_available_outlined,
+            tone: AppTone.sky,
+            title: 'Attendance opens when your internship starts',
             message:
-                'Attendance will be available once your internship is active.',
+                'Once your coordinator starts your internship, you’ll check in '
+                'and out here each working day.',
           );
         }
 
         return attendanceValue.when(
-          loading: () => const AppLoading(message: 'Loading attendance...'),
+          loading: () => const AppLoading(layout: AppLoadingLayout.dashboard),
           error: (error, stackTrace) => AppErrorState(
-            message: 'Unable to load your attendance. Please try again.',
+            message:
+                'Your attendance couldn’t be loaded. Check your '
+                'connection and try again.',
             onRetry: () =>
                 ref.read(attendanceControllerProvider.notifier).refresh(),
           ),
-          data: (state) => _AttendanceBody(state: state),
+          data: (state) =>
+              _AttendanceBody(state: state, internship: internship),
         );
       },
     );
@@ -77,146 +94,168 @@ class StudentAttendanceScreen extends ConsumerWidget {
 }
 
 class _AttendanceBody extends ConsumerWidget {
-  const _AttendanceBody({required this.state});
+  const _AttendanceBody({required this.state, required this.internship});
 
   final AttendanceState state;
+  final InternshipModel internship;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = state.today;
+    final recent = state.history.take(8).toList();
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(attendanceControllerProvider.notifier).refresh(),
+      onRefresh: () =>
+          ref.read(attendanceControllerProvider.notifier).refresh(),
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          Text(
-            "Today's Attendance",
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (today == null) ...[
-                  Text(
-                    'Not checked in yet',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppButton(
-                    label: 'Check In',
-                    isLoading: state.isProcessing,
-                    onPressed: state.isProcessing
-                        ? null
-                        : () =>
-                              ref.read(attendanceControllerProvider.notifier).checkIn(),
-                  ),
-                ] else if (today.checkOutTime == null) ...[
-                  Text(
-                    'Checked in at ${_formatTime(today.checkInTime)}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppButton(
-                    label: 'Check Out',
-                    isLoading: state.isProcessing,
-                    onPressed: state.isProcessing
-                        ? null
-                        : () => ref
-                              .read(attendanceControllerProvider.notifier)
-                              .checkOut(),
-                  ),
-                ] else ...[
-                  Text(
-                    'Checked in at ${_formatTime(today.checkInTime)}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  Text(
-                    'Checked out at ${_formatTime(today.checkOutTime!)}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const AppStatusChip(
-                    label: 'Completed',
-                    type: AppStatusChipType.success,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            'Attendance History',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          if (state.history.isEmpty)
-            const AppEmptyState(
-              title: 'No Attendance Yet',
-              message: 'Your check-in history will appear here.',
-            )
-          else
-            for (final record in state.history) ...[
-              _HistoryCard(record: record),
-              const SizedBox(height: AppSpacing.sm),
+          ResponsiveColumns(
+            primary: [
+              FadeSlideIn(child: _TodayCard(state: state)),
+              FadeSlideIn(
+                index: 1,
+                child: SectionCard(
+                  title: 'Recent days',
+                  child: recent.isEmpty
+                      ? const AppEmptyState(
+                          compact: true,
+                          icon: Icons.history_rounded,
+                          tone: AppTone.sky,
+                          title: 'No days yet',
+                          message: 'Each day you check in is listed here.',
+                        )
+                      : Column(
+                          children: [
+                            for (var i = 0; i < recent.length; i++) ...[
+                              if (i > 0) const Divider(),
+                              _DayRow(record: recent[i]),
+                            ],
+                          ],
+                        ),
+                ),
+              ),
             ],
+            secondary: [
+              FadeSlideIn(
+                index: 2,
+                child: AppCard(
+                  child: AttendanceCalendar(
+                    records: state.history,
+                    since: internship.activatedAt ?? internship.startDate,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
         ],
       ),
     );
   }
 }
 
-class _HistoryCard extends StatelessWidget {
-  const _HistoryCard({required this.record});
+/// Today's check-in, as the thing the page is really for.
+class _TodayCard extends ConsumerWidget {
+  const _TodayCard({required this.state});
+
+  final AttendanceState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final today = state.today;
+    final controller = ref.read(attendanceControllerProvider.notifier);
+
+    final (headline, detail) = today == null
+        ? ('You haven’t checked in yet', 'Check in when you arrive at work.')
+        : today.checkOutTime == null
+        ? (
+            'Checked in at ${Formatters.time(today.checkInTime)}',
+            'Check out before you leave for the day.',
+          )
+        : (
+            'Done for today',
+            'You were in from ${Formatters.time(today.checkInTime)} to '
+                '${Formatters.time(today.checkOutTime!)}.',
+          );
+
+    return AppCard(
+      color: AppColors.sky,
+      borderColor: AppColors.sky,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            Formatters.day(Formatters.todayUtc()).toUpperCase(),
+            style: textTheme.labelSmall?.copyWith(
+              color: AppColors.inkDeep.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            headline,
+            style: textTheme.headlineSmall?.copyWith(color: AppColors.inkDeep),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            detail,
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppColors.inkDeep.withValues(alpha: 0.75),
+            ),
+          ),
+          if (today == null || today.checkOutTime == null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label: today == null ? 'Check in' : 'Check out',
+              icon: today == null ? Icons.login_rounded : Icons.logout_rounded,
+              isLoading: state.isProcessing,
+              onPressed: today == null
+                  ? controller.checkIn
+                  : controller.checkOut,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DayRow extends StatelessWidget {
+  const _DayRow({required this.record});
 
   final AttendanceModel record;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final (label, tone) = switch (record.status) {
+      AttendanceStatus.completed => ('Present', AppTone.sky),
+      AttendanceStatus.checkedIn => ('Checked in', AppTone.ink),
+      AttendanceStatus.missed => ('Missed', AppTone.error),
+      AttendanceStatus.incomplete => ('No check-out', AppTone.warning),
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(_formatDate(record.date), style: textTheme.titleMedium),
-              ),
-              AppStatusChip(
-                label: record.status.label,
-                type: switch (record.status) {
-                  AttendanceStatus.completed => AppStatusChipType.success,
-                  AttendanceStatus.checkedIn => AppStatusChipType.info,
-                  AttendanceStatus.missed => AppStatusChipType.error,
-                  AttendanceStatus.incomplete => AppStatusChipType.warning,
-                },
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(Formatters.day(record.date), style: textTheme.titleSmall),
+                Text(
+                  record.checkOutTime == null
+                      ? 'In ${Formatters.time(record.checkInTime)}'
+                      : '${Formatters.time(record.checkInTime)} – '
+                            '${Formatters.time(record.checkOutTime!)}',
+                  style: textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'In: ${_formatTime(record.checkInTime)}'
-            '${record.checkOutTime == null ? '' : ' • Out: ${_formatTime(record.checkOutTime!)}'}',
-            style: textTheme.bodySmall,
-          ),
+          AppStatusChip(label: label, tone: tone),
         ],
       ),
     );
   }
-}
-
-String _formatDate(DateTime date) {
-  final local = date.toLocal();
-  return '${local.day}/${local.month}/${local.year}';
-}
-
-String _formatTime(DateTime time) {
-  final local = time.toLocal();
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
-  return '$hour:$minute';
 }

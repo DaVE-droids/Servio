@@ -94,14 +94,19 @@ class AttendanceService {
   /// satisfies the rule — which it can't do when the query's filter field
   /// doesn't match the rule's checked field. See docs/CHANGELOG.md.
   Future<QuerySnapshot<Map<String, dynamic>>> getAttendanceHistory(
-    String studentId,
-  ) {
-    return _firestore
+    String studentId, {
+    String? lecturerId,
+  }) {
+    // A lecturer may only list their own students' attendance, and
+    // Firestore rejects a query it can't prove stays inside that — so when
+    // a lecturer asks, the query is narrowed to their own records too.
+    Query<Map<String, dynamic>> query = _firestore
         .collection('attendance')
-        .where('studentId', isEqualTo: studentId)
-        .orderBy('date', descending: true)
-        .limit(30)
-        .get();
+        .where('studentId', isEqualTo: studentId);
+    if (lecturerId != null) {
+      query = query.where('lecturerId', isEqualTo: lecturerId);
+    }
+    return query.orderBy('date', descending: true).limit(30).get();
   }
 
   /// Returns recent attendance records across a lecturer's assigned

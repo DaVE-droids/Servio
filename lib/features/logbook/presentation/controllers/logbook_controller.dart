@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../../../core/enums/internship_status.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
@@ -57,7 +58,8 @@ class LogbookController extends AsyncNotifier<LogbookState> {
       state = AsyncData(
         previous.copyWith(
           clearMessages: true,
-          errorMessage: 'Logbook entries are only available for an active internship.',
+          errorMessage:
+              'Logbook entries are only available for an active internship.',
         ),
       );
       return;
@@ -82,37 +84,43 @@ class LogbookController extends AsyncNotifier<LogbookState> {
       state = AsyncData(
         previous.copyWith(
           clearMessages: true,
-          errorMessage: 'Your internship does not have an assigned lecturer yet.',
+          errorMessage:
+              'Your internship does not have an assigned lecturer yet.',
         ),
       );
       return;
     }
 
-    state = AsyncData(previous.copyWith(isSubmitting: true, clearMessages: true));
-
-    final result = await ref.read(submitLogbookUseCaseProvider).call(
-      LogbookEntryRequest(
-        internshipId: internship.internshipId,
-        studentId: profile.uid,
-        studentName: '${profile.firstName} ${profile.lastName}',
-        studentMatricNumber: profile.matricNumber ?? '',
-        lecturerId: internship.lecturerId!,
-        // Falls back to the ID for internships assigned before
-        // lecturerName denormalization existed — same reasoning as
-        // AttendanceController.
-        lecturerName: internship.lecturerName ?? internship.lecturerId!,
-        companyName: internship.companyName,
-        state: internship.state,
-        activities: activities,
-        skillsLearned: skillsLearned,
-        challenges: challenges,
-        solutionsApplied: solutionsApplied,
-        hoursWorked: hoursWorked,
-      ),
+    state = AsyncData(
+      previous.copyWith(isSubmitting: true, clearMessages: true),
     );
+
+    final result = await ref
+        .read(submitLogbookUseCaseProvider)
+        .call(
+          LogbookEntryRequest(
+            internshipId: internship.internshipId,
+            studentId: profile.uid,
+            studentName: '${profile.firstName} ${profile.lastName}',
+            studentMatricNumber: profile.matricNumber ?? '',
+            lecturerId: internship.lecturerId!,
+            // Falls back to the ID for internships assigned before
+            // lecturerName denormalization existed — same reasoning as
+            // AttendanceController.
+            lecturerName: internship.lecturerName ?? internship.lecturerId!,
+            companyName: internship.companyName,
+            state: internship.state,
+            activities: activities,
+            skillsLearned: skillsLearned,
+            challenges: challenges,
+            solutionsApplied: solutionsApplied,
+            hoursWorked: hoursWorked,
+          ),
+        );
 
     switch (result) {
       case Success(:final data):
+        ref.invalidate(internshipProgressProvider);
         final historyWithoutToday = previous.history
             .where((entry) => entry.entryId != data.entryId)
             .toList();
@@ -161,7 +169,11 @@ class LogbookController extends AsyncNotifier<LogbookState> {
         errorMessage ??= error.message;
     }
 
-    return LogbookState(today: today, history: history, errorMessage: errorMessage);
+    return LogbookState(
+      today: today,
+      history: history,
+      errorMessage: errorMessage,
+    );
   }
 
   InternshipModel? _activeInternship() {

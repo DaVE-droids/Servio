@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../../../core/enums/internship_status.dart';
 import '../../../../core/result/result.dart';
 import '../../../internship/data/models/internship_model.dart';
@@ -53,7 +54,8 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
       state = AsyncData(
         previous.copyWith(
           clearMessages: true,
-          errorMessage: 'Attendance is only available for an active internship.',
+          errorMessage:
+              'Attendance is only available for an active internship.',
         ),
       );
       return;
@@ -78,32 +80,38 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
       state = AsyncData(
         previous.copyWith(
           clearMessages: true,
-          errorMessage: 'Your internship does not have an assigned lecturer yet.',
+          errorMessage:
+              'Your internship does not have an assigned lecturer yet.',
         ),
       );
       return;
     }
 
-    state = AsyncData(previous.copyWith(isProcessing: true, clearMessages: true));
-
-    final result = await ref.read(checkInUseCaseProvider).call(
-      AttendanceCheckInRequest(
-        internshipId: internship.internshipId,
-        studentId: profile.uid,
-        studentName: '${profile.firstName} ${profile.lastName}',
-        studentMatricNumber: profile.matricNumber ?? '',
-        lecturerId: internship.lecturerId!,
-        // Falls back to the ID for internships assigned before lecturerName
-        // denormalization existed (Phase 1 test data) rather than blocking
-        // check-in entirely over a missing display field.
-        lecturerName: internship.lecturerName ?? internship.lecturerId!,
-        companyName: internship.companyName,
-        state: internship.state,
-      ),
+    state = AsyncData(
+      previous.copyWith(isProcessing: true, clearMessages: true),
     );
+
+    final result = await ref
+        .read(checkInUseCaseProvider)
+        .call(
+          AttendanceCheckInRequest(
+            internshipId: internship.internshipId,
+            studentId: profile.uid,
+            studentName: '${profile.firstName} ${profile.lastName}',
+            studentMatricNumber: profile.matricNumber ?? '',
+            lecturerId: internship.lecturerId!,
+            // Falls back to the ID for internships assigned before lecturerName
+            // denormalization existed (Phase 1 test data) rather than blocking
+            // check-in entirely over a missing display field.
+            lecturerName: internship.lecturerName ?? internship.lecturerId!,
+            companyName: internship.companyName,
+            state: internship.state,
+          ),
+        );
 
     switch (result) {
       case Success(:final data):
+        ref.invalidate(internshipProgressProvider);
         state = AsyncData(
           previous.copyWith(
             today: data,
@@ -136,7 +144,9 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
       return;
     }
 
-    state = AsyncData(previous.copyWith(isProcessing: true, clearMessages: true));
+    state = AsyncData(
+      previous.copyWith(isProcessing: true, clearMessages: true),
+    );
 
     final result = await ref
         .read(checkOutUseCaseProvider)
@@ -148,6 +158,7 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
 
     switch (result) {
       case Success():
+        ref.invalidate(internshipProgressProvider);
         state = AsyncData(
           previous.copyWith(isProcessing: false, clearMessages: true),
         );

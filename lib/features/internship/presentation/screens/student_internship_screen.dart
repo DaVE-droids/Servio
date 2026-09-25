@@ -4,12 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/constants/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/enums/internship_status.dart';
 import '../../../../core/services/maps_service.dart';
 import '../../../../core/widgets/address_search_field.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/fade_slide_in.dart';
+import '../../../../core/widgets/info_row.dart';
+import '../../../../core/widgets/responsive_columns.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_text_field.dart';
@@ -17,6 +21,7 @@ import '../../data/models/internship_model.dart';
 import '../../data/models/internship_submission_request.dart';
 import '../../domain/internship_validator.dart';
 import '../providers/internship_providers.dart';
+import '../widgets/placement_journey_card.dart';
 
 /// Student screen for viewing or submitting internship placement details.
 class StudentInternshipScreen extends ConsumerStatefulWidget {
@@ -120,9 +125,11 @@ class _StudentInternshipScreenState
     });
 
     return internshipValue.when(
-      loading: () => const AppLoading(message: 'Loading placement...'),
+      loading: () => const AppLoading(layout: AppLoadingLayout.detail),
       error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load your internship placement. Please try again.',
+        message:
+            'Your placement couldn’t be loaded. Check your connection '
+            'and try again.',
         onRetry: () =>
             ref.read(internshipControllerProvider.notifier).refresh(),
       ),
@@ -132,27 +139,23 @@ class _StudentInternshipScreenState
           return _SubmittedInternshipView(internship: internship);
         }
 
-        return ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            Text(
-              _isReviewing ? 'Review Placement' : 'Submit Placement',
-              style: Theme.of(context).textTheme.headlineMedium,
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                _StepHeader(isReviewing: _isReviewing),
+                const SizedBox(height: AppSpacing.md),
+                if (_isReviewing)
+                  _buildReview(internshipState.isSubmitting)
+                else
+                  _buildForm(internshipState.isSubmitting),
+                const SizedBox(height: AppSpacing.xl),
+              ],
             ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              _isReviewing
-                  ? 'Confirm the details below before submitting for coordinator review.'
-                  : 'Enter the company and internship details for your field placement.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (_isReviewing)
-              _buildReview(internshipState.isSubmitting)
-            else
-              _buildForm(internshipState.isSubmitting),
-            const SizedBox(height: AppSpacing.lg),
-          ],
+          ),
         );
       },
     );
@@ -162,17 +165,18 @@ class _StudentInternshipScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppCard(
+        SectionCard(
+          title: 'Where you’ll work',
+          subtitle:
+              'Pick the address from the suggestions so your lecturer '
+              'can find it on a map.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Company Information',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
               AppTextField(
-                label: 'Company Name',
+                label: 'Company name',
+                prefixIcon: Icons.apartment_outlined,
+                textCapitalization: TextCapitalization.words,
                 controller: _companyNameController,
                 enabled: !isSubmitting,
                 errorText: _errors['companyName'],
@@ -221,7 +225,10 @@ class _StudentInternshipScreenState
                     .map(
                       (state) => DropdownMenuItem(
                         value: state,
-                        child: Text(state.name, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          state.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -243,49 +250,62 @@ class _StudentInternshipScreenState
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        AppCard(
+        SectionCard(
+          title: 'Supervisor and dates',
+          subtitle: 'The person at the company who oversees your work.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Internship Information',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.sm),
               AppTextField(
-                label: 'Company Supervisor Name',
+                label: 'Supervisor’s name',
+                prefixIcon: Icons.badge_outlined,
+                textCapitalization: TextCapitalization.words,
                 controller: _supervisorNameController,
                 enabled: !isSubmitting,
                 errorText: _errors['supervisorName'],
               ),
               const SizedBox(height: AppSpacing.sm),
               AppTextField(
-                label: 'Company Supervisor Phone',
+                label: 'Supervisor’s phone',
+                prefixIcon: Icons.call_outlined,
                 controller: _supervisorPhoneController,
                 enabled: !isSubmitting,
                 keyboardType: TextInputType.phone,
                 errorText: _errors['supervisorPhone'],
               ),
               const SizedBox(height: AppSpacing.sm),
-              _DatePickerField(
-                label: 'Start Date',
-                value: _startDate,
-                errorText: _errors['dates'],
-                enabled: !isSubmitting,
-                onTap: () => _selectDate(isStartDate: true),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              _DatePickerField(
-                label: 'End Date',
-                value: _endDate,
-                enabled: !isSubmitting,
-                onTap: () => _selectDate(isStartDate: false),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _DatePickerField(
+                      label: 'Start date',
+                      value: _startDate,
+                      errorText: _errors['dates'],
+                      enabled: !isSubmitting,
+                      onTap: () => _selectDate(isStartDate: true),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: _DatePickerField(
+                      label: 'End date',
+                      value: _endDate,
+                      enabled: !isSubmitting,
+                      onTap: () => _selectDate(isStartDate: false),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        AppButton(label: 'Review Placement', onPressed: _review),
+        AppButton(
+          label: 'Review details',
+          icon: Icons.arrow_forward_rounded,
+          onPressed: _review,
+        ),
       ],
     );
   }
@@ -294,46 +314,72 @@ class _StudentInternshipScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppCard(
-          child: Column(
-            children: [
-              _ReviewRow(label: 'Company', value: _companyNameController.text),
-              _ReviewRow(
-                label: 'Address',
-                value: _companyAddressController.text,
+        SectionCard(
+          title: 'Check everything is right',
+          subtitle:
+              'Your coordinator reviews these details before your '
+              'internship can start.',
+          child: InfoPanel(
+            rows: [
+              InfoRow(
+                'Company',
+                _companyNameController.text,
+                icon: Icons.apartment_outlined,
               ),
-              _ReviewRow(
-                label: 'Country',
-                value: _selectedCountry?.name ?? '',
+              InfoRow(
+                'Address',
+                _companyAddressController.text,
+                icon: Icons.place_outlined,
               ),
-              _ReviewRow(label: 'State', value: _selectedState?.name ?? ''),
-              _ReviewRow(
-                label: 'Supervisor',
-                value: _supervisorNameController.text,
+              InfoRow(
+                'Location',
+                [
+                  _selectedState?.name ?? '',
+                  _selectedCountry?.name ?? '',
+                ].where((part) => part.isNotEmpty).join(', '),
+                icon: Icons.map_outlined,
               ),
-              _ReviewRow(
-                label: 'Supervisor Phone',
-                value: _supervisorPhoneController.text,
+              InfoRow(
+                'Supervisor',
+                _supervisorNameController.text,
+                icon: Icons.badge_outlined,
               ),
-              _ReviewRow(label: 'Start Date', value: _formatDate(_startDate)),
-              _ReviewRow(label: 'End Date', value: _formatDate(_endDate)),
-              const _ReviewRow(
-                label: 'Initial Status',
-                value: 'Pending Review',
+              InfoRow(
+                'Supervisor’s phone',
+                _supervisorPhoneController.text,
+                icon: Icons.call_outlined,
+              ),
+              InfoRow(
+                'Dates',
+                _startDate == null || _endDate == null
+                    ? '—'
+                    : Formatters.dateRange(
+                        DateTime.utc(
+                          _startDate!.year,
+                          _startDate!.month,
+                          _startDate!.day,
+                        ),
+                        DateTime.utc(
+                          _endDate!.year,
+                          _endDate!.month,
+                          _endDate!.day,
+                        ),
+                      ),
+                icon: Icons.date_range_outlined,
               ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         AppButton(
-          label: 'Submit Placement',
+          label: 'Submit for review',
           isLoading: isSubmitting,
           onPressed: _submit,
         ),
         const SizedBox(height: AppSpacing.xs),
         AppButton(
-          label: 'Edit Details',
-          variant: AppButtonVariant.secondary,
+          label: 'Edit details',
+          variant: AppButtonVariant.text,
           onPressed: isSubmitting
               ? null
               : () => setState(() => _isReviewing = false),
@@ -444,39 +490,101 @@ class _SubmittedInternshipView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        Text(
-          'Current Internship',
-          style: Theme.of(context).textTheme.headlineMedium,
+        ResponsiveColumns(
+          primaryFlex: 7,
+          secondaryFlex: 5,
+          primary: [
+            FadeSlideIn(child: PlacementJourneyCard(internship: internship)),
+          ],
+          secondary: [
+            FadeSlideIn(
+              index: 1,
+              child: SectionCard(
+                title: 'Placement details',
+                child: InfoPanel(
+                  rows: [
+                    InfoRow(
+                      'Address',
+                      internship.companyAddress,
+                      icon: Icons.place_outlined,
+                    ),
+                    InfoRow(
+                      'Location',
+                      [
+                        internship.state,
+                        internship.country,
+                      ].where((part) => part.isNotEmpty).join(', '),
+                      icon: Icons.map_outlined,
+                    ),
+                    InfoRow(
+                      'Supervisor',
+                      internship.companySupervisorName,
+                      icon: Icons.badge_outlined,
+                    ),
+                    InfoRow(
+                      'Supervisor’s phone',
+                      internship.companySupervisorPhone,
+                      icon: Icons.call_outlined,
+                    ),
+                    InfoRow(
+                      'Lecturer',
+                      internship.lecturerName ?? 'Not assigned yet',
+                      icon: Icons.school_outlined,
+                    ),
+                    InfoRow(
+                      'Submitted',
+                      Formatters.date(internship.submittedAt),
+                      icon: Icons.outbox_outlined,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                internship.companyName,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(internship.companyAddress),
-              const SizedBox(height: AppSpacing.sm),
-              _ReviewRow(label: 'Status', value: internship.status.label),
-              _ReviewRow(label: 'Country', value: internship.country),
-              _ReviewRow(label: 'State', value: internship.state),
-              _ReviewRow(
-                label: 'Supervisor',
-                value: internship.companySupervisorName,
-              ),
-              _ReviewRow(
-                label: 'Start Date',
-                value: _formatDate(internship.startDate),
-              ),
-              _ReviewRow(
-                label: 'End Date',
-                value: _formatDate(internship.endDate),
+        const SizedBox(height: AppSpacing.xl),
+      ],
+    );
+  }
+}
+
+/// "Step 1 of 2" above the submission form, so students know how long it is.
+class _StepHeader extends StatelessWidget {
+  const _StepHeader({required this.isReviewing});
+
+  final bool isReviewing;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('STEP ${isReviewing ? 2 : 1} OF 2', style: textTheme.labelSmall),
+        const SizedBox(height: 4),
+        Text(
+          isReviewing ? 'Review your placement' : 'Submit your placement',
+          style: textTheme.headlineMedium,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            for (var step = 0; step < 2; step++) ...[
+              if (step > 0) const SizedBox(width: 6),
+              Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: step == 0 || isReviewing
+                        ? AppColors.ink
+                        : AppColors.line,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
             ],
-          ),
+          ],
         ),
       ],
     );
@@ -500,45 +608,27 @@ class _DatePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final picked = value;
     return InkWell(
       onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, errorText: errorText),
-        child: Text(value == null ? 'Select date' : _formatDate(value)),
+        decoration: InputDecoration(
+          labelText: label,
+          errorText: errorText,
+          errorMaxLines: 2,
+          prefixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
+        ),
+        child: Text(
+          picked == null
+              ? 'Select'
+              : Formatters.date(
+                  DateTime.utc(picked.year, picked.month, picked.day),
+                ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
-}
-
-class _ReviewRow extends StatelessWidget {
-  const _ReviewRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 136,
-            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
-}
-
-String _formatDate(DateTime? value) {
-  if (value == null) {
-    return 'Not selected';
-  }
-  return '${value.year.toString().padLeft(4, '0')}-'
-      '${value.month.toString().padLeft(2, '0')}-'
-      '${value.day.toString().padLeft(2, '0')}';
 }

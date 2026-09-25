@@ -46,11 +46,11 @@ final getPendingReviewsUseCaseProvider = Provider<GetPendingReviewsUseCase>((
 });
 
 /// Provides the review logbook entry use case.
-final reviewLogbookEntryUseCaseProvider = Provider<ReviewLogbookEntryUseCase>(
-  (ref) {
-    return ReviewLogbookEntryUseCase(ref.watch(logbookRepositoryProvider));
-  },
-);
+final reviewLogbookEntryUseCaseProvider = Provider<ReviewLogbookEntryUseCase>((
+  ref,
+) {
+  return ReviewLogbookEntryUseCase(ref.watch(logbookRepositoryProvider));
+});
 
 /// Provides the logbook controller.
 final logbookControllerProvider =
