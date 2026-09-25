@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Standard Servio button with primary, secondary, text, and destructive variants.
+/// Standard Servio button with primary, secondary, text, and destructive
+/// variants.
+///
+/// While [isLoading] the label is replaced by a spinner and taps are
+/// ignored, so a slow save can't be submitted twice.
 class AppButton extends StatelessWidget {
   /// Creates a standard button.
   const AppButton({
@@ -8,6 +12,8 @@ class AppButton extends StatelessWidget {
     required this.onPressed,
     this.variant = AppButtonVariant.primary,
     this.isLoading = false,
+    this.icon,
+    this.expand = true,
     super.key,
   });
 
@@ -23,19 +29,64 @@ class AppButton extends StatelessWidget {
   /// Whether to show a loading indicator instead of the label.
   final bool isLoading;
 
+  /// Optional leading icon.
+  final IconData? icon;
+
+  /// Whether to fill the available width.
+  final bool expand;
+
   @override
   Widget build(BuildContext context) {
-    final child = isLoading
-        ? const SizedBox.square(
-            dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : Text(label);
+    final colorScheme = Theme.of(context).colorScheme;
+    final onFilled = switch (variant) {
+      AppButtonVariant.primary || AppButtonVariant.destructive => true,
+      _ => false,
+    };
+
+    final Widget child = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 150),
+      child: isLoading
+          ? SizedBox.square(
+              key: const ValueKey('loading'),
+              dimension: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: onFilled ? Colors.white : colorScheme.primary,
+              ),
+            )
+          : Row(
+              key: const ValueKey('label'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18),
+                  const SizedBox(width: 8),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+    );
 
     final effectiveOnPressed = isLoading ? null : onPressed;
+    // Keep a filled look while loading, rather than greying out as if the
+    // button were disabled.
+    final loadingStyle = isLoading && onFilled
+        ? FilledButton.styleFrom(
+            disabledBackgroundColor: variant == AppButtonVariant.destructive
+                ? colorScheme.error
+                : colorScheme.primary,
+          )
+        : null;
 
-    return switch (variant) {
-      AppButtonVariant.primary => ElevatedButton(
+    final button = switch (variant) {
+      AppButtonVariant.primary => FilledButton(
+        style: loadingStyle,
         onPressed: effectiveOnPressed,
         child: child,
       ),
@@ -49,12 +100,15 @@ class AppButton extends StatelessWidget {
       ),
       AppButtonVariant.destructive => FilledButton(
         style: FilledButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.error,
+          backgroundColor: colorScheme.error,
+          disabledBackgroundColor: isLoading ? colorScheme.error : null,
         ),
         onPressed: effectiveOnPressed,
         child: child,
       ),
     };
+
+    return expand ? SizedBox(width: double.infinity, child: button) : button;
   }
 }
 

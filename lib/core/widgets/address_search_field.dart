@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_radii.dart';
 import '../../app/theme/app_spacing.dart';
 import '../providers/firebase_providers.dart';
 import '../result/result.dart';
@@ -44,8 +46,7 @@ class AddressSearchField extends ConsumerStatefulWidget {
   final VoidCallback? onTextEdited;
 
   @override
-  ConsumerState<AddressSearchField> createState() =>
-      _AddressSearchFieldState();
+  ConsumerState<AddressSearchField> createState() => _AddressSearchFieldState();
 }
 
 class _AddressSearchFieldState extends ConsumerState<AddressSearchField> {
@@ -66,10 +67,7 @@ class _AddressSearchFieldState extends ConsumerState<AddressSearchField> {
     widget.onTextEdited?.call();
     _debounce?.cancel();
     setState(() => _searchError = null);
-    _debounce = Timer(
-      const Duration(milliseconds: 400),
-      () => _search(value),
-    );
+    _debounce = Timer(const Duration(milliseconds: 400), () => _search(value));
   }
 
   Future<void> _search(String value) async {
@@ -118,8 +116,9 @@ class _AddressSearchFieldState extends ConsumerState<AddressSearchField> {
           minLines: 1,
           onChanged: _onChanged,
           decoration: InputDecoration(
-            labelText: 'Company Address',
-            hintText: 'Start typing to search for an address...',
+            labelText: 'Company address',
+            hintText: 'Start typing, then pick from the list',
+            prefixIcon: const Icon(Icons.search_rounded, size: 20),
             errorText: widget.errorText ?? _searchError,
             suffixIcon: _isSearching
                 ? const Padding(
@@ -137,20 +136,24 @@ class _AddressSearchFieldState extends ConsumerState<AddressSearchField> {
           Container(
             margin: const EdgeInsets.only(top: AppSpacing.xxs),
             decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(AppRadii.control),
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: _suggestions
-                  .map(
-                    (suggestion) => ListTile(
-                      dense: true,
-                      title: Text(suggestion.displayName),
-                      onTap: () => _select(suggestion),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                for (var i = 0; i < _suggestions.length; i++) ...[
+                  if (i > 0) const Divider(),
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.place_outlined, size: 20),
+                    title: Text(_suggestions[i].displayName),
+                    onTap: () => _select(_suggestions[i]),
+                  ),
+                ],
+              ],
             ),
           ),
       ],
