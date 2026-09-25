@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../../core/enums/user_role.dart';
 import '../../../../core/errors/app_failure.dart';
@@ -13,10 +14,15 @@ import '../services/authentication_service.dart';
 /// Repository for authentication and account lifecycle operations.
 class AuthenticationRepository {
   /// Creates an authentication repository.
-  const AuthenticationRepository(this._authenticationService, this._firestore);
+  const AuthenticationRepository(
+    this._authenticationService,
+    this._firestore,
+    this._storage,
+  );
 
   final AuthenticationService _authenticationService;
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
 
   /// Emits app sessions by combining Firebase Auth state with Firestore roles.
   Stream<AuthSession> authSessionChanges() async* {
@@ -214,6 +220,99 @@ class AuthenticationRepository {
       return const Success(null);
     } on FirebaseAuthException catch (error) {
       return Failure(_mapAuthException(error));
+    } catch (error) {
+      return Failure(_unknownFailure(error));
+    }
+  }
+
+  /// Permanently deletes the signed-in user's account (App Store guideline
+  /// 5.1.1(v) and Google Play's account deletion policy).
+  ///
+  /// Removes the sign-in account, the profile, and the profile photo. The
+  /// placement, attendance, logbook, and supervision records the student
+  /// created stay: they're the institution's academic records, and the
+  /// privacy policy says so. The profile deletion and an audit event are
+  /// written together, so the trail records who left and when.
+  ///
+  /// Firebase only allows deletion shortly after sign-in, so the password
+  /// is confirmed first.
+  Future<Result<void>> deleteAccount(String password) async {
+    final user = _authenticationService.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) {
+      return const Failure(
+        AppFailure(
+          message: 'Your session has ended. Sign in again, then try again.',
+          type: FailureType.authentication,
+        ),
+      );
+    }
+    try {
+      await _authenticationService.reauthenticate(
+        email: email,
+        password: password,
+      );
+
+      final uid = user.uid;
+      final profile = (await _firestore.collection('users').doc(uid).get())
+          .data();
+      final name = [
+        profile?['firstName'],
+        profile?['lastName'],
+      ].whereType<String>().join(' ').trim();
+
+      // Best effort: most users have no photo, and a Storage problem must
+      // never stop someone deleting their account.
+      try {
+        await _storage.ref('profile_photos/$uid/avatar.jpg').delete();
+      } on FirebaseException {
+        // Nothing to remove, or Storage unavailable; carry on.
+      }
+
+      final auditRef = _firestore.collection('audit_events').doc();
+      final batch = _firestore.batch()
+        ..delete(_firestore.collection('users').doc(uid))
+        ..set(
+          auditRef,
+          AuditEventFactory.accountDeleted(
+            eventId: auditRef.id,
+            userId: uid,
+            userName: name.isEmpty ? email : name,
+            role: profile?['role'] as String? ?? 'unknown',
+            createdAt: DateTime.now().toUtc(),
+          ).toJson(),
+        );
+      await batch.commit();
+
+      await _authenticationService.deleteCurrentUser();
+      return const Success(null);
+    } on FirebaseAuthException catch (error) {
+      final wrongPassword = {
+        'wrong-password',
+        'invalid-credential',
+        'invalid-login-credentials',
+      }.contains(error.code);
+      return Failure(
+        wrongPassword
+            ? AppFailure(
+                message: 'That password isn’t right. Try again.',
+                type: FailureType.authentication,
+                code: error.code,
+                technicalDetails: error,
+              )
+            : _mapAuthException(error),
+      );
+    } on FirebaseException catch (error) {
+      return Failure(
+        AppFailure(
+          message:
+              'Your account couldn’t be deleted. Check your connection '
+              'and try again.',
+          type: FailureType.database,
+          code: error.code,
+          technicalDetails: error,
+        ),
+      );
     } catch (error) {
       return Failure(_unknownFailure(error));
     }

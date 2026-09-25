@@ -156,6 +156,25 @@ void main() {
       expect(event.description, contains('awaiting coordinator approval'));
     });
 
+    test(
+      'an account deletion is recorded as the user acting on themselves',
+      () {
+        final event = AuditEventFactory.accountDeleted(
+          eventId: 'e1',
+          userId: 'student-1',
+          userName: 'Tunde Bakare',
+          role: 'student',
+          createdAt: DateTime.utc(2026, 9, 22),
+        );
+        // The security rules only accept an event whose actor is the signed-in
+        // user, so the deleting user must be the actor.
+        expect(event.actorId, 'student-1');
+        expect(event.targetUserId, 'student-1');
+        expect(event.action, 'deleted_account');
+        expect(event.entityType, 'user');
+      },
+    );
+
     test('approving and deactivating a lecturer are distinct actions', () {
       AuditEventModel build(bool isActive) =>
           AuditEventFactory.lecturerAccessChanged(
@@ -218,8 +237,9 @@ void main() {
         isFalse,
       );
       expect(
-        AuditFilter(to: sameDay.subtract(const Duration(days: 1)))
-            .matches(event),
+        AuditFilter(
+          to: sameDay.subtract(const Duration(days: 1)),
+        ).matches(event),
         isFalse,
       );
     });
@@ -265,10 +285,7 @@ void main() {
       // The precedence bug that silently disabled every snackbar once
       // before — asserted here so it can't come back in this state class.
       const state = AuditState(errorMessage: 'old');
-      final updated = state.copyWith(
-        clearMessages: true,
-        errorMessage: 'new',
-      );
+      final updated = state.copyWith(clearMessages: true, errorMessage: 'new');
       expect(updated.errorMessage, 'new');
       expect(state.copyWith(clearMessages: true).errorMessage, isNull);
     });

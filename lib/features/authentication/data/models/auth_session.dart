@@ -30,4 +30,22 @@ class AuthSession {
 
   /// Whether a Firebase user is currently signed in.
   bool get isAuthenticated => firebaseUser != null;
+
+  /// Signed-in user's ID, or null when signed out.
+  String? get uid => firebaseUser?.uid;
+
+  // Two sessions are equal when everything routing and data loading depend
+  // on is the same. Firebase re-emits the user on every hourly token
+  // refresh; without this, each refresh looked like a new session and
+  // reloaded every screen (and sent the user back to their dashboard).
+  @override
+  bool operator ==(Object other) =>
+      other is AuthSession &&
+      other.uid == uid &&
+      other.isEmailVerified == isEmailVerified &&
+      other.role == role &&
+      other.isActive == isActive;
+
+  @override
+  int get hashCode => Object.hash(uid, isEmailVerified, role, isActive);
 }

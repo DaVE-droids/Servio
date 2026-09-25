@@ -58,3 +58,14 @@ final lecturersProvider = FutureProvider<List<UserModel>>((ref) async {
     Failure(:final error) => throw error,
   };
 });
+
+/// Any user's profile by ID (what the security rules allow the viewer to
+/// read). Cached while any screen shows it.
+final userProfileProvider = FutureProvider.autoDispose
+    .family<UserModel, String>((ref, uid) async {
+      final result = await ref.watch(getCurrentUserUseCaseProvider).call(uid);
+      return switch (result) {
+        Success(:final data) => data,
+        Failure(:final error) => throw error,
+      };
+    });

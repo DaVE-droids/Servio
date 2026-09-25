@@ -25,6 +25,7 @@ final authenticationRepositoryProvider = Provider<AuthenticationRepository>((
   return AuthenticationRepository(
     ref.watch(authenticationServiceProvider),
     ref.watch(firebaseFirestoreProvider),
+    ref.watch(firebaseStorageProvider),
   );
 });
 
@@ -66,8 +67,15 @@ final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
 });
 
 /// Provides the persisted authentication session stream.
+///
+/// `distinct()` drops re-emissions of an unchanged session (see
+/// [AuthSession.==]), so the hourly token refresh doesn't ripple through
+/// every provider that watches this one.
 final authSessionProvider = StreamProvider<AuthSession>((ref) {
-  return ref.watch(authenticationRepositoryProvider).authSessionChanges();
+  return ref
+      .watch(authenticationRepositoryProvider)
+      .authSessionChanges()
+      .distinct();
 });
 
 /// Provides the authentication controller placeholder.

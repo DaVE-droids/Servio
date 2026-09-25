@@ -181,10 +181,9 @@ class ProfileRepository {
   Future<Result<List<UserModel>>> getLecturers() async {
     try {
       final snapshot = await _profileService.getLecturers();
-      final lecturers = snapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data()))
-          .toList()
-        ..sort(_byName);
+      final lecturers =
+          snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList()
+            ..sort(_byName);
       return Success(lecturers);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));
@@ -197,10 +196,9 @@ class ProfileRepository {
   Future<Result<List<UserModel>>> getStudents() async {
     try {
       final snapshot = await _profileService.getStudents();
-      final students = snapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data()))
-          .toList()
-        ..sort(_byName);
+      final students =
+          snapshot.docs.map((doc) => UserModel.fromJson(doc.data())).toList()
+            ..sort(_byName);
       return Success(students);
     } on FirebaseException catch (error) {
       return Failure(_mapFirebaseException(error));

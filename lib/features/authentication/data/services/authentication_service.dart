@@ -58,6 +58,26 @@ class AuthenticationService {
     return _firebaseAuth.currentUser;
   }
 
+  /// Confirms the signed-in user's password. Firebase requires a recent
+  /// sign-in before sensitive actions such as deleting the account.
+  Future<void> reauthenticate({
+    required String email,
+    required String password,
+  }) {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(code: 'no-current-user');
+    }
+    return user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: password),
+    );
+  }
+
+  /// Permanently deletes the signed-in user's sign-in account.
+  Future<void> deleteCurrentUser() async {
+    await _firebaseAuth.currentUser?.delete();
+  }
+
   /// Signs out the current user.
   Future<void> logout() => _firebaseAuth.signOut();
 }

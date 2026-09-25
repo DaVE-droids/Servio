@@ -691,7 +691,10 @@ service cloud.firestore {
           || isValidEmailVerificationUpdate()
         ))
         || isValidLecturerAccessChange();
-      allow delete: if false;
+      // A user may delete their own profile when they delete their account
+      // (App Store / Google Play account deletion requirement). Nobody else
+      // can delete a profile; placement records elsewhere are unaffected.
+      allow delete: if isOwner(userId);
     }
 
   match /internships/{internshipId} {

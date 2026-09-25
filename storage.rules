@@ -19,6 +19,10 @@ service firebase.storage {
     match /profile_photos/{userId}/avatar.jpg {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId) && isValidProfilePhoto();
+      // Deleting sends no new file, so it can't pass the upload checks
+      // above; owners may always remove their own photo (used when they
+      // remove it or delete their account).
+      allow delete: if isOwner(userId);
     }
 
     match /{allPaths=**} {
