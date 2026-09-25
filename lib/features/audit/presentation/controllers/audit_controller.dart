@@ -52,8 +52,10 @@ class AuditController extends AsyncNotifier<AuditState> {
     final result = await ref.read(getAuditEventsUseCaseProvider).call();
     return switch (result) {
       Success(:final data) => AuditState(events: data, filter: filter),
-      Failure(:final error) =>
-        AuditState(filter: filter, errorMessage: error.message),
+      Failure(:final error) => AuditState(
+        filter: filter,
+        errorMessage: error.message,
+      ),
     };
   }
 }

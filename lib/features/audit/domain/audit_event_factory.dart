@@ -60,7 +60,10 @@ abstract final class AuditEventFactory {
       entityId: internshipId,
       targetUserId: studentId,
       description: "Approved $studentName's placement at $companyName.",
-      metadata: const {'previousStatus': 'pending_review', 'newStatus': 'approved'},
+      metadata: const {
+        'previousStatus': 'pending_review',
+        'newStatus': 'approved',
+      },
       createdAt: createdAt,
     );
   }
@@ -86,7 +89,10 @@ abstract final class AuditEventFactory {
       entityId: internshipId,
       targetUserId: studentId,
       description: "Rejected $studentName's placement at $companyName.",
-      metadata: const {'previousStatus': 'pending_review', 'newStatus': 'rejected'},
+      metadata: const {
+        'previousStatus': 'pending_review',
+        'newStatus': 'rejected',
+      },
       createdAt: createdAt,
     );
   }
@@ -189,6 +195,29 @@ abstract final class AuditEventFactory {
       description: role == 'lecturer'
           ? 'Registered as a lecturer (awaiting coordinator approval).'
           : 'Registered as a student.',
+      createdAt: createdAt,
+    );
+  }
+
+  /// A user deleted their own account. Their placement records stay (they
+  /// belong to the institution), so the trail records who left and when.
+  static AuditEventModel accountDeleted({
+    required String eventId,
+    required String userId,
+    required String userName,
+    required String role,
+    required DateTime createdAt,
+  }) {
+    return AuditEventModel(
+      eventId: eventId,
+      actorId: userId,
+      actorName: userName,
+      actorRole: role,
+      action: 'deleted_account',
+      entityType: 'user',
+      entityId: userId,
+      targetUserId: userId,
+      description: 'Deleted their Servio account.',
       createdAt: createdAt,
     );
   }

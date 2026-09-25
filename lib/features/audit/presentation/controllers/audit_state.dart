@@ -82,8 +82,7 @@ class AuditFilter {
   }
 }
 
-DateTime _dayOf(DateTime value) =>
-    DateTime(value.year, value.month, value.day);
+DateTime _dayOf(DateTime value) => DateTime(value.year, value.month, value.day);
 
 /// UI state for the coordinator's audit history.
 class AuditState {

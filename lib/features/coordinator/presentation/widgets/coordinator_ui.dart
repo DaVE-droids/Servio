@@ -1,94 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_avatar.dart';
+
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../core/enums/internship_status.dart';
-import '../../../../core/widgets/app_status_chip.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../reports/data/models/internship_progress.dart';
 
+export '../../../../core/widgets/info_row.dart';
+export '../../../../core/widgets/placement_status_chip.dart';
+export '../../../../core/widgets/section_header.dart';
+
 /// Small building blocks shared by the coordinator Students, Lecturers,
 /// and Reports screens, so the three read the same way.
-
-/// Coloured chip for a student's placement status; `null` means the student
-/// hasn't submitted a placement at all.
-class PlacementStatusChip extends StatelessWidget {
-  /// Creates a placement status chip.
-  const PlacementStatusChip({required this.status, super.key});
-
-  /// The placement status, or null for "no placement".
-  final InternshipStatus? status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, type) = placementStatusLabel(status);
-    return AppStatusChip(label: label, type: type);
-  }
-}
-
-/// Human label and chip colour for a placement status.
-(String, AppStatusChipType) placementStatusLabel(InternshipStatus? status) {
-  return switch (status) {
-    null => ('No placement', AppStatusChipType.neutral),
-    InternshipStatus.draft => ('Draft', AppStatusChipType.neutral),
-    InternshipStatus.pendingReview => ('Pending review', AppStatusChipType.warning),
-    InternshipStatus.approved => ('Needs lecturer', AppStatusChipType.warning),
-    InternshipStatus.rejected => ('Rejected', AppStatusChipType.error),
-    InternshipStatus.assigned => ('Ready to start', AppStatusChipType.info),
-    InternshipStatus.active => ('Active', AppStatusChipType.success),
-    InternshipStatus.completed => ('Completed', AppStatusChipType.success),
-    InternshipStatus.archived => ('Archived', AppStatusChipType.neutral),
-  };
-}
-
-/// Bold heading that separates groups within a screen.
-class SectionHeader extends StatelessWidget {
-  /// Creates a section header.
-  const SectionHeader(this.title, {super.key});
-
-  /// Heading text.
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-/// A "Label: value" line, with the label in a fixed-width column so
-/// stacked rows line up.
-class InfoRow extends StatelessWidget {
-  /// Creates an info row.
-  const InfoRow(this.label, this.value, {super.key});
-
-  /// Left-hand label.
-  final String label;
-
-  /// Right-hand value.
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 120, child: Text(label, style: textTheme.bodySmall)),
-          Expanded(child: Text(value, style: textTheme.bodyMedium)),
-        ],
-      ),
-    );
-  }
-}
 
 /// One-line progress summary: attendance days, logbook, visits.
 class ProgressLine extends StatelessWidget {
@@ -148,7 +73,7 @@ String shortDate(DateTime? date) {
 }
 
 /// The top of every placement card on the coordinator's Placements tabs:
-/// the student's name as the bold title, then who they are, then where.
+/// who the student is, then where and when they'll work.
 ///
 /// Leads with the student rather than the company because the coordinator
 /// is deciding about a *person* — and two students can share an employer.
@@ -158,6 +83,7 @@ class PlacementCardHeader extends StatelessWidget {
   const PlacementCardHeader({
     required this.internship,
     required this.chip,
+    this.showDetails = false,
     super.key,
   });
 
@@ -167,6 +93,10 @@ class PlacementCardHeader extends StatelessWidget {
   /// Status chip shown beside the name.
   final Widget chip;
 
+  /// Also show supervisor, dates, and address — what a coordinator needs
+  /// in front of them to approve a placement.
+  final bool showDetails;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -174,34 +104,90 @@ class PlacementCardHeader extends StatelessWidget {
         ? 'Unnamed student'
         : internship.studentName;
     final identity = [
-      if (internship.studentMatricNumber.isNotEmpty) internship.studentMatricNumber,
+      if (internship.studentMatricNumber.isNotEmpty)
+        internship.studentMatricNumber,
       internship.department,
-    ].join(' · ');
-    final location = [
-      internship.companyName,
-      if (internship.state.isNotEmpty) internship.state,
     ].join(' · ');
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
+            AppAvatar(name: name, size: 44),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                name,
-                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    identity,
+                    style: textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: AppSpacing.xs),
             chip,
           ],
         ),
-        Text(identity, style: textTheme.bodySmall),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(location, style: textTheme.bodyMedium),
+        const SizedBox(height: AppSpacing.sm),
+        _Fact(
+          icon: Icons.apartment_outlined,
+          text: [
+            internship.companyName,
+            if (internship.state.isNotEmpty) internship.state,
+          ].join(' · '),
+        ),
+        if (showDetails) ...[
+          _Fact(icon: Icons.place_outlined, text: internship.companyAddress),
+          _Fact(
+            icon: Icons.badge_outlined,
+            text:
+                '${internship.companySupervisorName} · '
+                '${internship.companySupervisorPhone}',
+          ),
+          _Fact(
+            icon: Icons.date_range_outlined,
+            text: Formatters.dateRange(
+              internship.startDate,
+              internship.endDate,
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _Fact extends StatelessWidget {
+  const _Fact({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.textTertiary),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+        ],
+      ),
     );
   }
 }

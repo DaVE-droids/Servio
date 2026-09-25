@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/result/result.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -14,7 +16,6 @@ import '../../../profile/data/models/user_model.dart';
 import '../providers/approved_internships_provider.dart';
 import 'assign_lecturer_dialog.dart';
 import 'coordinator_ui.dart';
-import 'pending_review_tab.dart' show formatShortDate;
 
 /// Coordinator dashboard tab listing approved placements that still need a
 /// lecturer assigned.
@@ -34,17 +35,22 @@ class _NeedsLecturerTabState extends ConsumerState<NeedsLecturerTab> {
     final approvedInternshipsAsync = ref.watch(approvedInternshipsProvider);
 
     return approvedInternshipsAsync.when(
-      loading: () => const AppLoading(message: 'Loading placements...'),
+      loading: () => const AppLoading(),
       error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load approved placements. Please try again.',
+        message:
+            'Placements couldn’t be loaded. Check your connection and '
+            'try again.',
         onRetry: () => ref.invalidate(approvedInternshipsProvider),
       ),
       data: (internships) {
         if (internships.isEmpty) {
           return const AppEmptyState(
-            title: 'No Placements Waiting',
+            icon: Icons.person_add_alt_outlined,
+            tone: AppTone.blush,
+            title: 'Every approved placement has a lecturer',
             message:
-                'Every approved placement currently has a lecturer assigned.',
+                'When you approve a placement, it waits here until you assign '
+                'a supervising lecturer.',
           );
         }
 
@@ -71,8 +77,10 @@ class _NeedsLecturerTabState extends ConsumerState<NeedsLecturerTab> {
   Future<void> _assign(InternshipModel internship) async {
     final lecturer = await showDialog<UserModel>(
       context: context,
-      builder: (_) =>
-          AssignLecturerDialog(companyName: internship.companyName),
+      builder: (_) => AssignLecturerDialog(
+        companyName: internship.companyName,
+        studentName: internship.studentName,
+      ),
     );
 
     if (lecturer == null || !mounted) {
@@ -117,29 +125,26 @@ class _NeedsLecturerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm + 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           PlacementCardHeader(
             internship: internship,
-            chip: const AppStatusChip(
-              label: 'Approved',
-              type: AppStatusChipType.success,
+            chip: AppStatusChip(
+              label: internship.approvedAt == null
+                  ? 'Approved'
+                  : 'Approved ${Formatters.relative(internship.approvedAt!)}',
+              tone: AppTone.success,
             ),
           ),
-          if (internship.approvedAt != null)
-            Text(
-              'Approved ${formatShortDate(internship.approvedAt!)}',
-              style: textTheme.bodySmall,
-            ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'Assign Lecturer',
+            label: 'Assign lecturer',
+            icon: Icons.person_add_alt_rounded,
             isLoading: isProcessing,
-            onPressed: isProcessing ? null : onAssign,
+            onPressed: onAssign,
           ),
         ],
       ),

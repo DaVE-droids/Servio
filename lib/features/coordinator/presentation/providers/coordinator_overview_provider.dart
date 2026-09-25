@@ -1,19 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_failure.dart';
-import '../../../../core/providers/firebase_providers.dart';
 import '../../../../core/result/result.dart';
 import '../../../authentication/presentation/providers/authentication_providers.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
-import '../../../reports/data/repositories/reports_repository.dart';
-import '../../../reports/data/services/reports_service.dart';
+import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../domain/coordinator_overview.dart';
-
-/// Provides the reports repository (progress counting).
-final reportsRepositoryProvider = Provider<ReportsRepository>((ref) {
-  return ReportsRepository(ReportsService(ref.watch(firebaseFirestoreProvider)));
-});
 
 /// Loads the shared [CoordinatorOverview] behind the Students, Lecturers,
 /// and Reports screens.

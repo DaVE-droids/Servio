@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/result/result.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -38,17 +40,22 @@ class _PendingReviewTabState extends ConsumerState<PendingReviewTab> {
     };
 
     return pendingInternshipsAsync.when(
-      loading: () => const AppLoading(message: 'Loading placements...'),
+      loading: () => const AppLoading(),
       error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load pending placements. Please try again.',
+        message:
+            'Placements couldn’t be loaded. Check your connection and '
+            'try again.',
         onRetry: () => ref.invalidate(pendingInternshipsProvider),
       ),
       data: (internships) {
         if (internships.isEmpty) {
           return const AppEmptyState(
-            title: 'No Pending Placements',
+            icon: Icons.inbox_outlined,
+            tone: AppTone.warning,
+            title: 'Nothing waiting for review',
             message:
-                'All caught up! New placement submissions will appear here for review.',
+                'New placements that students submit will wait here for your '
+                'decision.',
           );
         }
 
@@ -94,10 +101,14 @@ class _PendingReviewTabState extends ConsumerState<PendingReviewTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AppDialog(
-        title: 'Reject Placement?',
+        title: 'Reject this placement?',
         message:
-            'This will reject the placement submitted for ${internship.companyName}. This cannot be undone.',
-        confirmLabel: 'Reject',
+            '${internship.studentName}’s placement at ${internship.companyName} '
+            'will be rejected and they’ll be notified to submit a new one. '
+            'This can’t be undone.',
+        confirmLabel: 'Reject placement',
+        isDestructive: true,
+        icon: Icons.block_rounded,
         onConfirm: () => Navigator.of(dialogContext).pop(true),
       ),
     );
@@ -154,32 +165,26 @@ class _PendingInternshipCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm + 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           PlacementCardHeader(
             internship: internship,
-            chip: const AppStatusChip(
-              label: 'Pending Review',
-              type: AppStatusChipType.warning,
+            showDetails: true,
+            chip: AppStatusChip(
+              label: 'Submitted ${Formatters.relative(internship.submittedAt)}',
+              tone: AppTone.warning,
             ),
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Submitted ${formatShortDate(internship.submittedAt)}',
-            style: textTheme.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               Expanded(
                 child: AppButton(
                   label: 'Reject',
-                  variant: AppButtonVariant.destructive,
-                  isLoading: isProcessing,
+                  variant: AppButtonVariant.secondary,
                   onPressed: isProcessing ? null : onReject,
                 ),
               ),
@@ -187,8 +192,9 @@ class _PendingInternshipCard extends StatelessWidget {
               Expanded(
                 child: AppButton(
                   label: 'Approve',
+                  icon: Icons.check_rounded,
                   isLoading: isProcessing,
-                  onPressed: isProcessing ? null : onApprove,
+                  onPressed: onApprove,
                 ),
               ),
             ],
@@ -198,10 +204,3 @@ class _PendingInternshipCard extends StatelessWidget {
     );
   }
 }
-
-/// Formats a date as `d/M/yyyy` in the viewer's local timezone.
-String formatShortDate(DateTime date) {
-  final local = date.toLocal();
-  return '${local.day}/${local.month}/${local.year}';
-}
-

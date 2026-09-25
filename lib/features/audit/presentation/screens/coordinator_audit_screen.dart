@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_tone.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_card.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
@@ -22,114 +26,122 @@ class CoordinatorAuditScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auditValue = ref.watch(auditControllerProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Audit History'),
-        actions: [
-          auditValue.maybeWhen(
-            data: (state) => IconButton(
-              tooltip: 'Filter',
-              onPressed: () => _openFilters(context, ref, state),
-              icon: Icon(
-                state.filter.isActive
-                    ? Icons.filter_alt
-                    : Icons.filter_alt_outlined,
-              ),
-            ),
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
+    return auditValue.when(
+      loading: () => const AppLoading(),
+      error: (error, stackTrace) => AppErrorState(
+        message:
+            'The audit history couldn’t be loaded. Check your '
+            'connection and try again.',
+        onRetry: () => ref.read(auditControllerProvider.notifier).refresh(),
       ),
-      body: auditValue.when(
-        loading: () => const AppLoading(message: 'Loading audit history...'),
-        error: (error, stackTrace) => AppErrorState(
-          message: 'Unable to load audit history. Please try again.',
-          onRetry: () => ref.read(auditControllerProvider.notifier).refresh(),
-        ),
-        data: (state) {
-          if (state.errorMessage != null) {
-            return AppErrorState(
-              message: state.errorMessage!,
-              onRetry: () =>
-                  ref.read(auditControllerProvider.notifier).refresh(),
-            );
-          }
-          if (state.events.isEmpty) {
-            return const AppEmptyState(
-              title: 'No Activity Yet',
-              message:
-                  'Placement approvals, lecturer assignments, logbook '
-                  'reviews, and supervision visits will be recorded here.',
-            );
-          }
-
-          final visible = state.visibleEvents;
-          if (visible.isEmpty) {
-            return AppEmptyState(
-              title: 'No Matching Events',
-              message:
-                  'No audit events match the current filters. '
-                  '${state.events.length} events are loaded.',
-              actionLabel: 'Clear filters',
-              onActionPressed: () =>
-                  ref.read(auditControllerProvider.notifier).clearFilters(),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () =>
-                ref.read(auditControllerProvider.notifier).refresh(),
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                if (state.filter.isActive)
-                  _FilterSummary(
-                    shown: visible.length,
-                    total: state.events.length,
-                    onClear: () =>
-                        ref.read(auditControllerProvider.notifier).clearFilters(),
-                  ),
-                ..._buildGroupedRows(context, visible),
-              ],
-            ),
+      data: (state) {
+        if (state.errorMessage != null) {
+          return AppErrorState(
+            message: state.errorMessage!,
+            onRetry: () => ref.read(auditControllerProvider.notifier).refresh(),
           );
-        },
-      ),
-    );
-  }
+        }
+        if (state.events.isEmpty) {
+          return const AppEmptyState(
+            icon: Icons.history_rounded,
+            title: 'No activity yet',
+            message:
+                'Placement decisions, lecturer assignments, logbook reviews, '
+                'and supervision visits are recorded here as they happen.',
+          );
+        }
 
-  /// Flattens the events into day headings followed by their rows, which
-  /// is what turns a raw audit list into the readable timeline the SRS
-  /// describes.
-  List<Widget> _buildGroupedRows(
-    BuildContext context,
-    List<AuditEventModel> events,
-  ) {
-    final rows = <Widget>[];
-    String? currentDay;
+        final visible = state.visibleEvents;
+        final groups = <String, List<AuditEventModel>>{};
+        for (final event in visible) {
+          groups
+              .putIfAbsent(_dayLabel(event.createdAt.toLocal()), () => [])
+              .add(event);
+        }
 
-    for (final event in events) {
-      final day = _dayLabel(event.createdAt.toLocal());
-      if (day != currentDay) {
-        currentDay = day;
-        rows.add(
-          Padding(
-            padding: const EdgeInsets.only(
-              top: AppSpacing.md,
-              bottom: AppSpacing.xs,
-            ),
-            child: Text(
-              day,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+        return RefreshIndicator(
+          onRefresh: () => ref.read(auditControllerProvider.notifier).refresh(),
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      state.filter.isActive
+                          ? 'Showing ${visible.length} of ${state.events.length} events'
+                          : 'Latest ${state.events.length} events. Records '
+                                'can’t be edited or deleted.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  if (state.filter.isActive)
+                    TextButton(
+                      onPressed: () => ref
+                          .read(auditControllerProvider.notifier)
+                          .clearFilters(),
+                      child: const Text('Clear'),
+                    ),
+                  const SizedBox(width: AppSpacing.xs),
+                  OutlinedButton.icon(
+                    onPressed: () => _openFilters(context, ref, state),
+                    icon: Icon(
+                      state.filter.isActive
+                          ? Icons.filter_alt
+                          : Icons.filter_alt_outlined,
+                      size: 18,
+                    ),
+                    label: const Text('Filter'),
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: AppSpacing.sm),
+              if (visible.isEmpty)
+                AppEmptyState(
+                  compact: true,
+                  icon: Icons.filter_alt_off_outlined,
+                  title: 'No matching events',
+                  message:
+                      'Nothing in the loaded history matches these filters.',
+                  actionLabel: 'Clear filters',
+                  onActionPressed: () =>
+                      ref.read(auditControllerProvider.notifier).clearFilters(),
+                ),
+              for (final entry in groups.entries) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    4,
+                    AppSpacing.md,
+                    4,
+                    AppSpacing.xs,
+                  ),
+                  child: Text(
+                    entry.key.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+                AppCard(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < entry.value.length; i++)
+                        _AuditRow(
+                          event: entry.value[i],
+                          isLast: i == entry.value.length - 1,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.xl),
+            ],
           ),
         );
-      }
-      rows.add(_AuditRow(event: event));
-    }
-    return rows;
+      },
+    );
   }
 
   Future<void> _openFilters(
@@ -148,66 +160,74 @@ class CoordinatorAuditScreen extends ConsumerWidget {
   }
 }
 
-class _FilterSummary extends StatelessWidget {
-  const _FilterSummary({
-    required this.shown,
-    required this.total,
-    required this.onClear,
-  });
-
-  final int shown;
-  final int total;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            'Showing $shown of $total events',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        TextButton(onPressed: onClear, child: const Text('Clear filters')),
-      ],
-    );
-  }
-}
-
 class _AuditRow extends StatelessWidget {
-  const _AuditRow({required this.event});
+  const _AuditRow({required this.event, required this.isLast});
 
   final AuditEventModel event;
+  final bool isLast;
+
+  /// The module an event belongs to, in Servio's module colours.
+  static AppTone _toneFor(String entityType) => switch (entityType) {
+    'attendance' => AppTone.sky,
+    'logbook_entry' => AppTone.blush,
+    'user' => AppTone.neutral,
+    _ => AppTone.ink,
+  };
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final tone = _toneFor(event.entityType);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+    return IntrinsicHeight(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 52,
-            child: Text(
-              _timeLabel(event.createdAt.toLocal()),
-              style: textTheme.bodySmall,
+            width: 44,
+            child: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: Text(
+                _timeLabel(event.createdAt.toLocal()),
+                style: textTheme.labelMedium,
+              ),
+            ),
+          ),
+          // A thin timeline: a dot per event, joined within the day.
+          SizedBox(
+            width: 20,
+            child: Column(
+              children: [
+                const SizedBox(height: AppSpacing.sm + 3),
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: tone.fill,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: tone.foreground, width: 1.5),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(child: Container(width: 1.5, color: AppColors.line)),
+              ],
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(event.description, style: textTheme.bodyMedium),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  '${event.actorName} · ${event.actorRole}',
-                  style: textTheme.bodySmall,
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs + 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(event.description, style: textTheme.bodyMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${event.actorName} · ${humanizeAction(event.actorRole)}',
+                    style: textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -245,7 +265,7 @@ class _FilterSheetState extends State<_FilterSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Filter Audit History',
+              'Filter the history',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: AppSpacing.md),
@@ -306,8 +326,9 @@ class _FilterSheetState extends State<_FilterSheet> {
                 if (_filter.from != null)
                   IconButton(
                     tooltip: 'Clear dates',
-                    onPressed: () =>
-                        setState(() => _filter = _filter.copyWith(clearDates: true)),
+                    onPressed: () => setState(
+                      () => _filter = _filter.copyWith(clearDates: true),
+                    ),
                     icon: const Icon(Icons.close),
                   ),
               ],
@@ -371,7 +392,10 @@ class _Dropdown extends StatelessWidget {
       // RenderFlex fix the coordinator assignment dropdown needed.
       isExpanded: true,
       initialValue: value,
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
       items: [
         const DropdownMenuItem<String?>(child: Text('Any')),
         for (final entry in options.entries)
@@ -410,9 +434,7 @@ String _dayLabel(DateTime value) {
   if (difference == 1) {
     return 'Yesterday';
   }
-  return '${day.year.toString().padLeft(4, '0')}-'
-      '${day.month.toString().padLeft(2, '0')}-'
-      '${day.day.toString().padLeft(2, '0')}';
+  return Formatters.day(DateTime.utc(day.year, day.month, day.day));
 }
 
 String _timeLabel(DateTime value) {

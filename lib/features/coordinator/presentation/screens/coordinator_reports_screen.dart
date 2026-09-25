@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
+import '../../../../app/theme/app_typography.dart';
 import '../../../../core/enums/internship_status.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/app_empty_state.dart';
 import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
+import '../../../../core/widgets/stat_tile.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../profile/data/models/user_model.dart';
 import '../../domain/coordinator_overview.dart';
@@ -16,12 +22,11 @@ import '../widgets/coordinator_ui.dart';
 /// Coordinator reports (PRD §18 "Reports"; §21 "Reports can be generated
 /// without relying on paper records or spreadsheets").
 ///
-/// Plain summaries and tables only — the PRD explicitly moves interactive
-/// charts and analytics dashboards to a later version. Everything here is
-/// derived from the shared coordinator overview, so it costs no extra
-/// reads beyond what the Students and Lecturers screens already loaded.
-///
-/// Rendered inside the coordinator app shell, which supplies the scaffold.
+/// Summaries and tables rather than an analytics dashboard, which the PRD
+/// moves to a later version. Everything is derived from the shared
+/// coordinator overview, so it costs no reads beyond what the Students and
+/// Lecturers screens already loaded. Each table can be copied as CSV to
+/// paste into a spreadsheet.
 class CoordinatorReportsScreen extends ConsumerStatefulWidget {
   /// Creates the reports screen.
   const CoordinatorReportsScreen({super.key});
@@ -41,16 +46,20 @@ class _CoordinatorReportsScreenState
     final overviewValue = ref.watch(coordinatorOverviewProvider);
 
     return overviewValue.when(
-      loading: () => const AppLoading(message: 'Preparing reports...'),
+      loading: () => const AppLoading(layout: AppLoadingLayout.dashboard),
       error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load reports. Please try again.',
+        message:
+            'Reports couldn’t be prepared. Check your connection and try '
+            'again.',
         onRetry: () => ref.invalidate(coordinatorOverviewProvider),
       ),
       data: (overview) {
         if (overview.students.isEmpty) {
           return const AppEmptyState(
-            title: 'Nothing to Report Yet',
-            message: 'Reports fill in once students register and submit placements.',
+            icon: Icons.insights_outlined,
+            title: 'Nothing to report yet',
+            message:
+                'Reports fill in once students register and submit placements.',
           );
         }
 
@@ -60,51 +69,107 @@ class _CoordinatorReportsScreenState
         final rows = [
           for (final student in students)
             if (overview.internshipFor(student.uid) case final internship?)
-              if (CoordinatorOverview.trackedStatuses.contains(internship.status))
+              if (CoordinatorOverview.trackedStatuses.contains(
+                internship.status,
+              ))
                 (student: student, internship: internship),
         ];
+        final counts = <InternshipStatus?, int>{};
+        for (final student in students) {
+          final status = overview.internshipFor(student.uid)?.status;
+          counts[status] = (counts[status] ?? 0) + 1;
+        }
+        final awaiting =
+            (counts[InternshipStatus.pendingReview] ?? 0) +
+            (counts[InternshipStatus.approved] ?? 0) +
+            (counts[InternshipStatus.assigned] ?? 0);
 
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(coordinatorOverviewProvider),
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
-              DropdownButtonFormField<String?>(
-                isExpanded: true,
-                initialValue: _department,
-                decoration: const InputDecoration(
-                  labelText: 'Department',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(child: Text('All departments')),
-                  for (final department in overview.departments)
-                    DropdownMenuItem<String?>(
-                      value: department,
-                      child: Text(department, overflow: TextOverflow.ellipsis),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Live figures, as of when this page loaded.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
+                  ),
+                  SizedBox(
+                    width: 260,
+                    child: DropdownButtonFormField<String?>(
+                      isExpanded: true,
+                      initialValue: _department,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.filter_list_rounded, size: 20),
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          child: Text('All departments'),
+                        ),
+                        for (final department in overview.departments)
+                          DropdownMenuItem<String?>(
+                            value: department,
+                            child: Text(
+                              department,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) => setState(() => _department = value),
+                    ),
+                  ),
                 ],
-                onChanged: (value) => setState(() => _department = value),
               ),
-              const SectionHeader('Placement summary'),
-              _PlacementSummary(overview: overview, students: students),
-              const SectionHeader('Supervision coverage'),
-              _SupervisionCoverage(overview: overview, rows: rows),
-              SectionHeader('Student progress (${rows.length})'),
-              if (rows.isEmpty)
-                const AppCard(
-                  child: Text('No students have started supervision yet.'),
-                )
-              else
-                _StudentProgressTable(overview: overview, rows: rows),
-              const SectionHeader('Lecturer workload'),
-              _LecturerWorkloadTable(overview: overview),
               const SizedBox(height: AppSpacing.md),
-              Text(
-                'Figures are live from the database as of when this page '
-                'loaded. Pull down to refresh.',
-                style: Theme.of(context).textTheme.bodySmall,
+              StatGrid(
+                children: [
+                  StatTile(
+                    value: '${students.length}',
+                    label: 'Students',
+                    icon: Icons.school_outlined,
+                    tone: AppTone.sky,
+                    highlighted: true,
+                  ),
+                  StatTile(
+                    value: '${counts[InternshipStatus.active] ?? 0}',
+                    label: 'On placement now',
+                    icon: Icons.work_outline,
+                    tone: AppTone.sky,
+                  ),
+                  StatTile(
+                    value: '$awaiting',
+                    label: 'Awaiting your action',
+                    icon: Icons.pending_actions_outlined,
+                    tone: awaiting > 0 ? AppTone.warning : AppTone.ink,
+                  ),
+                  StatTile(
+                    value: '${counts[InternshipStatus.completed] ?? 0}',
+                    label: 'Completed',
+                    icon: Icons.verified_outlined,
+                    tone: AppTone.success,
+                  ),
+                ],
               ),
+              const SizedBox(height: AppSpacing.md),
+              SectionCard(
+                title: 'Where the cohort is',
+                subtitle: 'Each student’s current placement, by journey stage.',
+                child: _PipelineBar(counts: counts, total: students.length),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SectionCard(
+                title: 'Supervision coverage',
+                child: _SupervisionCoverage(overview: overview, rows: rows),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _StudentProgressTable(overview: overview, rows: rows),
+              const SizedBox(height: AppSpacing.md),
+              _LecturerWorkloadTable(overview: overview),
+              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         );
@@ -115,83 +180,90 @@ class _CoordinatorReportsScreenState
 
 typedef _Row = ({UserModel student, InternshipModel internship});
 
-class _PlacementSummary extends StatelessWidget {
-  const _PlacementSummary({required this.overview, required this.students});
+/// One stacked bar across the journey stages, with a legend of counts.
+class _PipelineBar extends StatelessWidget {
+  const _PipelineBar({required this.counts, required this.total});
 
-  final CoordinatorOverview overview;
-  final List<UserModel> students;
+  final Map<InternshipStatus?, int> counts;
+  final int total;
 
-  @override
-  Widget build(BuildContext context) {
-    final counts = <InternshipStatus?, int>{};
-    for (final student in students) {
-      final status = overview.internshipFor(student.uid)?.status;
-      counts[status] = (counts[status] ?? 0) + 1;
-    }
-
-    const shown = <InternshipStatus?>[
-      null,
-      InternshipStatus.pendingReview,
-      InternshipStatus.approved,
-      InternshipStatus.assigned,
-      InternshipStatus.active,
-      InternshipStatus.completed,
-      InternshipStatus.rejected,
-    ];
-
-    // Two tiles per row on a phone, four on a laptop, each filling its
-    // share of the width so rows line up without a ragged gap.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 720 ? 4 : 2;
-        final tileWidth =
-            (constraints.maxWidth - AppSpacing.sm * (columns - 1)) / columns;
-        return Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            _StatTile(label: 'Students', value: students.length, width: tileWidth),
-            for (final status in shown)
-              _StatTile(
-                label: placementStatusLabel(status).$1,
-                value: counts[status] ?? 0,
-                width: tileWidth,
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.width,
-  });
-
-  final String label;
-  final int value;
-  final double width;
+  static const _stages = <(InternshipStatus?, String, Color)>[
+    (null, 'No placement', AppColors.line),
+    (InternshipStatus.pendingReview, 'Pending review', AppColors.warningSoft),
+    (InternshipStatus.approved, 'Needs lecturer', AppColors.blush),
+    (InternshipStatus.assigned, 'Ready to start', AppColors.skySoft),
+    (InternshipStatus.active, 'Active', AppColors.sky),
+    (InternshipStatus.completed, 'Completed', AppColors.ink),
+    (InternshipStatus.rejected, 'Rejected', AppColors.errorSoft),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return SizedBox(
-      width: width,
-      child: AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$value',
-              style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+    final present = _stages.where((stage) => (counts[stage.$1] ?? 0) > 0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          label: [
+            for (final stage in present) '${counts[stage.$1]} ${stage.$2}',
+          ].join(', '),
+          excludeSemantics: true,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              height: 18,
+              child: Row(
+                children: [
+                  for (final stage in present)
+                    Expanded(
+                      flex: counts[stage.$1]!,
+                      child: Container(
+                        color: stage.$3,
+                        margin: const EdgeInsets.only(right: 2),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            Text(label, style: textTheme.bodySmall),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.xs,
+          children: [
+            for (final stage in _stages)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: stage.$3,
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(
+                        color: AppColors.lineStrong,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(stage.$2, style: textTheme.bodySmall),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${counts[stage.$1] ?? 0}',
+                    style: textTheme.titleSmall?.copyWith(
+                      fontFeatures: AppTypography.tabular,
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
@@ -208,65 +280,175 @@ class _SupervisionCoverage extends StatelessWidget {
         .where((row) => row.internship.status == InternshipStatus.active)
         .toList();
     final unvisited = active
-        .where((row) => overview.progressFor(row.internship.internshipId).visits == 0)
+        .where(
+          (row) =>
+              overview.progressFor(row.internship.internshipId).visits == 0,
+        )
         .toList();
+    final visited = active.length - unvisited.length;
     final textTheme = Theme.of(context).textTheme;
 
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            active.isEmpty
-                ? 'No internships are active right now.'
-                : '${active.length - unvisited.length} of ${active.length} '
-                      'active students have had at least one supervision visit.',
-            style: textTheme.bodyMedium,
-          ),
-          if (unvisited.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xs),
+    if (active.isEmpty) {
+      return Text(
+        'No internships are active right now.',
+        style: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
             Text(
-              'Not yet visited:',
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            for (final row in unvisited)
-              Text(
-                '• ${row.internship.studentName} — ${row.internship.companyName}'
-                ' (${row.internship.lecturerName ?? 'no lecturer'})',
-                style: textTheme.bodySmall,
+              '$visited',
+              style: textTheme.headlineMedium?.copyWith(
+                fontFeatures: AppTypography.tabular,
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 6, bottom: 4),
+              child: Text(
+                'of ${active.length} active students visited at least once',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
           ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: visited / active.length,
+            minHeight: 8,
+            color: AppColors.ink,
+            backgroundColor: AppColors.inkSoft,
+          ),
+        ),
+        if (unvisited.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text('NOT YET VISITED', style: textTheme.labelSmall),
+          const SizedBox(height: AppSpacing.xs),
+          for (final row in unvisited)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.person_pin_circle_outlined,
+                    size: 16,
+                    color: AppColors.warning,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      '${row.internship.studentName} · ${row.internship.companyName}'
+                      ' · ${row.internship.lecturerName ?? 'no lecturer'}',
+                      style: textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
-      ),
+      ],
     );
   }
 }
 
-/// Tables scroll sideways on a phone rather than squashing their columns.
-class _ScrollableTable extends StatelessWidget {
-  const _ScrollableTable({required this.columns, required this.rows});
+/// A titled table that scrolls sideways on a phone rather than squashing
+/// its columns, with a button to copy it as CSV.
+class _ReportTable extends StatelessWidget {
+  const _ReportTable({
+    required this.title,
+    required this.columns,
+    required this.rows,
+    this.emptyMessage = 'Nothing to show yet.',
+  });
 
+  final String title;
   final List<String> columns;
   final List<List<String>> rows;
+  final String emptyMessage;
+
+  String _csv() {
+    String cell(String value) {
+      final needsQuotes = value.contains(RegExp(r'[",\n]'));
+      final escaped = value.replaceAll('"', '""');
+      return needsQuotes ? '"$escaped"' : escaped;
+    }
+
+    return [
+      columns.map(cell).join(','),
+      for (final row in rows) row.map(cell).join(','),
+    ].join('\n');
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: EdgeInsets.zero,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: AppSpacing.md,
-          headingTextStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-          columns: [for (final column in columns) DataColumn(label: Text(column))],
-          rows: [
-            for (final row in rows)
-              DataRow(cells: [for (final cell in row) DataCell(Text(cell))]),
-          ],
-        ),
+    final textTheme = Theme.of(context).textTheme;
+    return SectionCard(
+      title: title,
+      subtitle: Formatters.count(rows.length, 'row'),
+      trailing: rows.isEmpty
+          ? null
+          : TextButton.icon(
+              icon: const Icon(Icons.content_copy_rounded, size: 18),
+              label: const Text('Copy as CSV'),
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: _csv()));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Copied. Paste into Excel or Google Sheets.',
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xs,
       ),
+      child: rows.isEmpty
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                emptyMessage,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                horizontalMargin: 0,
+                columnSpacing: AppSpacing.lg,
+                headingRowHeight: 40,
+                dataRowMinHeight: 44,
+                dataRowMaxHeight: 52,
+                headingTextStyle: textTheme.labelSmall,
+                dataTextStyle: textTheme.bodyMedium,
+                dividerThickness: 1,
+                columns: [
+                  for (final column in columns)
+                    DataColumn(label: Text(column.toUpperCase())),
+                ],
+                rows: [
+                  for (final row in rows)
+                    DataRow(
+                      cells: [for (final cell in row) DataCell(Text(cell))],
+                    ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -279,7 +461,9 @@ class _StudentProgressTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ScrollableTable(
+    return _ReportTable(
+      title: 'Student progress',
+      emptyMessage: 'No students have started supervision yet.',
       columns: const [
         'Student',
         'Matric',
@@ -317,14 +501,18 @@ class _LecturerWorkloadTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lecturers = overview.activeLecturers;
-    if (lecturers.isEmpty) {
-      return const AppCard(child: Text('No approved lecturers yet.'));
-    }
-    return _ScrollableTable(
-      columns: const ['Lecturer', 'Department', 'Current', 'All-time', 'Visits'],
+    return _ReportTable(
+      title: 'Lecturer workload',
+      emptyMessage: 'No approved lecturers yet.',
+      columns: const [
+        'Lecturer',
+        'Department',
+        'Current',
+        'All-time',
+        'Visits',
+      ],
       rows: [
-        for (final lecturer in lecturers)
+        for (final lecturer in overview.activeLecturers)
           () {
             final all = overview.allSupervisedBy(lecturer.uid);
             final visits = all.fold<int>(

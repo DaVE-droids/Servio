@@ -12,6 +12,40 @@ class ReportsRepository {
 
   final ReportsService _service;
 
+  /// Progress for one internship, counted as a student ([studentId]) or
+  /// lecturer ([lecturerId]) is allowed to count it — see
+  /// [ReportsService.countProgress].
+  Future<Result<InternshipProgress>> loadScopedProgress(
+    String internshipId, {
+    String? studentId,
+    String? lecturerId,
+  }) async {
+    try {
+      final counts = await _service.countProgress(
+        internshipId,
+        studentId: studentId,
+        lecturerId: lecturerId,
+      );
+      return Success(
+        InternshipProgress(
+          attendanceDays: counts[0],
+          logbookEntries: counts[1],
+          logbookApproved: counts[2],
+          visits: counts[3],
+        ),
+      );
+    } on FirebaseException catch (error) {
+      return Failure(_failureFor(error));
+    } catch (error) {
+      return Failure(
+        AppFailure(
+          message: 'Something unexpected happened. Please try again.',
+          technicalDetails: error,
+        ),
+      );
+    }
+  }
+
   /// Loads progress counts for each internship ID, keyed by that ID.
   ///
   /// All counts run in parallel — four small queries per internship — so a
@@ -42,18 +76,7 @@ class ReportsRepository {
       );
       return Success(Map.fromEntries(entries));
     } on FirebaseException catch (error) {
-      return Failure(
-        AppFailure(
-          message: error.code == 'unavailable'
-              ? 'Unable to connect. Check your internet connection and try again.'
-              : 'Unable to load progress figures. Please try again.',
-          type: error.code == 'unavailable'
-              ? FailureType.network
-              : FailureType.database,
-          code: error.code,
-          technicalDetails: error,
-        ),
-      );
+      return Failure(_failureFor(error));
     } catch (error) {
       return Failure(
         AppFailure(
@@ -62,5 +85,18 @@ class ReportsRepository {
         ),
       );
     }
+  }
+
+  AppFailure _failureFor(FirebaseException error) {
+    return AppFailure(
+      message: error.code == 'unavailable'
+          ? 'Unable to connect. Check your internet connection and try again.'
+          : 'Unable to load progress figures. Please try again.',
+      type: error.code == 'unavailable'
+          ? FailureType.network
+          : FailureType.database,
+      code: error.code,
+      technicalDetails: error,
+    );
   }
 }

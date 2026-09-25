@@ -7,7 +7,8 @@ import 'approved_internships_provider.dart';
 import 'coordinator_identity.dart';
 import 'coordinator_overview_provider.dart';
 
-class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> {
+class PendingInternshipsController
+    extends AsyncNotifier<List<InternshipModel>> {
   @override
   Future<List<InternshipModel>> build() async {
     final repository = ref.watch(internshipRepositoryProvider);
@@ -67,6 +68,6 @@ class PendingInternshipsController extends AsyncNotifier<List<InternshipModel>> 
 }
 
 final pendingInternshipsProvider =
-AsyncNotifierProvider<PendingInternshipsController, List<InternshipModel>>(
-  PendingInternshipsController.new,
-);
+    AsyncNotifierProvider<PendingInternshipsController, List<InternshipModel>>(
+      PendingInternshipsController.new,
+    );

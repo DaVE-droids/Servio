@@ -20,7 +20,9 @@ class AuditRepository {
 
   /// Retrieves the most recent audit events in reverse chronological
   /// order (FR-AUDIT-004).
-  Future<Result<List<AuditEventModel>>> getAuditEvents({int limit = 300}) async {
+  Future<Result<List<AuditEventModel>>> getAuditEvents({
+    int limit = 300,
+  }) async {
     try {
       final snapshot = await _service.getRecentEvents(limit: limit);
       final events = snapshot.docs
@@ -36,7 +38,8 @@ class AuditRepository {
 
   AppFailure _mapFirebaseException(FirebaseException error) {
     final message = switch (error.code) {
-      'permission-denied' => 'You do not have permission to view audit history.',
+      'permission-denied' =>
+        'You do not have permission to view audit history.',
       'unavailable' =>
         'Unable to connect. Check your internet connection and try again.',
       _ => 'Unable to load audit history. Please try again.',

@@ -106,6 +106,5 @@ class CoordinatorOverview {
 
   /// Every department that appears on a student, sorted, for filters.
   List<String> get departments =>
-      (students.map((student) => student.department).toSet().toList())
-        ..sort();
+      (students.map((student) => student.department).toSet().toList())..sort();
 }

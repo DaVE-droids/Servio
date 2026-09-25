@@ -58,7 +58,6 @@ class ApprovedInternshipsController
 }
 
 final approvedInternshipsProvider =
-    AsyncNotifierProvider<
-      ApprovedInternshipsController,
-      List<InternshipModel>
-    >(ApprovedInternshipsController.new);
+    AsyncNotifierProvider<ApprovedInternshipsController, List<InternshipModel>>(
+      ApprovedInternshipsController.new,
+    );

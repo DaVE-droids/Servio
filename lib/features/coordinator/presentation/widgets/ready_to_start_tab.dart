@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/result/result.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -13,7 +16,6 @@ import '../../../authentication/presentation/providers/authentication_providers.
 import '../../../internship/data/models/internship_model.dart';
 import '../providers/ready_to_start_provider.dart';
 import 'coordinator_ui.dart';
-import 'pending_review_tab.dart' show formatShortDate;
 
 /// Coordinator dashboard tab listing placements with a lecturer assigned
 /// but not yet activated.
@@ -37,17 +39,22 @@ class _ReadyToStartTabState extends ConsumerState<ReadyToStartTab> {
     };
 
     return readyToStartValue.when(
-      loading: () => const AppLoading(message: 'Loading placements...'),
+      loading: () => const AppLoading(),
       error: (error, stackTrace) => AppErrorState(
-        message: 'Unable to load placements. Please try again.',
+        message:
+            'Placements couldn’t be loaded. Check your connection and '
+            'try again.',
         onRetry: () => ref.invalidate(readyToStartProvider),
       ),
       data: (internships) {
         if (internships.isEmpty) {
           return const AppEmptyState(
-            title: 'Nothing Waiting to Start',
+            icon: Icons.play_circle_outline,
+            tone: AppTone.sky,
+            title: 'Nothing waiting to start',
             message:
-                'Placements with a lecturer assigned will appear here until activated.',
+                'Placements with a lecturer assigned wait here until you start '
+                'the internship.',
           );
         }
 
@@ -89,7 +96,7 @@ class _ReadyToStartTabState extends ConsumerState<ReadyToStartTab> {
     setState(() => _processingIds.remove(internship.internshipId));
 
     final message = switch (result) {
-      Success<void>() => 'Internship activated.',
+      Success<void>() => 'Internship started. The student can now check in.',
       Failure<void>(:final error) => error.message,
     };
     ScaffoldMessenger.of(
@@ -111,34 +118,49 @@ class _ReadyToStartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
+    final startsIn = internship.startDate
+        .toUtc()
+        .difference(Formatters.todayUtc())
+        .inDays;
     return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.sm + 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           PlacementCardHeader(
             internship: internship,
-            chip: const AppStatusChip(
-              label: 'Assigned',
-              type: AppStatusChipType.info,
+            chip: AppStatusChip(
+              label: startsIn > 0
+                  ? 'Starts in ${Formatters.count(startsIn, 'day')}'
+                  : 'Start date reached',
+              tone: startsIn > 0 ? AppTone.sky : AppTone.warning,
             ),
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            'Lecturer: ${internship.lecturerName ?? 'Name not recorded'}',
-            style: textTheme.bodySmall,
-          ),
-          if (internship.assignedAt != null)
-            Text(
-              'Assigned ${formatShortDate(internship.assignedAt!)}',
-              style: textTheme.bodySmall,
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.school_outlined,
+                  size: 16,
+                  color: AppColors.textTertiary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Supervised by ${internship.lecturerName ?? 'an unnamed lecturer'}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
             ),
-          const SizedBox(height: AppSpacing.sm),
+          ),
+          const SizedBox(height: AppSpacing.md),
           AppButton(
-            label: 'Activate',
+            label: 'Start internship',
+            icon: Icons.play_arrow_rounded,
             isLoading: isProcessing,
-            onPressed: isProcessing ? null : onActivate,
+            onPressed: onActivate,
           ),
         ],
       ),
