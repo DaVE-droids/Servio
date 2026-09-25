@@ -45,17 +45,29 @@ abstract final class AppRoutes {
   /// Lecturer assigned students route.
   static const assignedStudents = '/lecturer/assigned-students';
 
-  /// Lecturer visit reports route.
-  static const visitReports = '/lecturer/visit-reports';
+  /// Lecturer student detail route pattern (FR-SUP-002). The internship
+  /// ID is in the URL, so the page survives a browser refresh.
+  static const lecturerStudentDetailPattern =
+      '/lecturer/students/:internshipId';
 
-  /// Lecturer student detail route (FR-SUP-002).
-  static const studentDetail = '/lecturer/student-detail';
+  /// Lecturer student detail path for a specific placement.
+  static String lecturerStudentDetail(String internshipId) =>
+      '/lecturer/students/$internshipId';
+
+  /// Lecturer visit report route pattern (FR-SUP-004), nested under the
+  /// student it's for.
+  static const lecturerVisitReportPattern = 'visit';
+
+  /// Lecturer visit report path for a specific placement.
+  static String lecturerVisitReport(String internshipId) =>
+      '/lecturer/students/$internshipId/visit';
 
   /// Coordinator students route.
   static const students = '/coordinator/students';
 
   /// Coordinator student detail route pattern (`:studentId` is the UID).
-  static const coordinatorStudentDetailPattern = '/coordinator/students/:studentId';
+  static const coordinatorStudentDetailPattern =
+      '/coordinator/students/:studentId';
 
   /// Coordinator student detail path for a specific student.
   static String coordinatorStudentDetail(String studentId) =>

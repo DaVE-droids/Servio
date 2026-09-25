@@ -4,6 +4,10 @@ import '../constants/app_routes.dart';
 
 /// Route policy helpers for authentication and role-based navigation.
 abstract final class AuthRedirects {
+  /// Query parameter that carries the page a user was trying to open while
+  /// the session loaded or they signed in.
+  static const fromParam = 'from';
+
   /// Returns the correct dashboard route for a Servio role.
   static String? dashboardForRole(UserRole? role) {
     return switch (role) {
@@ -28,41 +32,55 @@ abstract final class AuthRedirects {
         AppRoutes.attendance,
         AppRoutes.logbook,
       }.contains(path),
-      UserRole.lecturer => {
-        AppRoutes.lecturerDashboard,
-        AppRoutes.assignedStudents,
-        AppRoutes.studentDetail,
-        AppRoutes.visitReports,
-        AppRoutes.logbook,
-        AppRoutes.attendance,
-      }.contains(path),
-      // Every /coordinator/... path belongs to coordinators. A prefix check
-      // (rather than listing each path) is what lets detail pages carry an
-      // ID in the URL, like /coordinator/students/<uid>.
-      UserRole.coordinator =>
-        path.startsWith('/coordinator/') || path == AppRoutes.internship,
+      // Prefix checks (rather than listing each path) let detail pages
+      // carry an ID in the URL, like /lecturer/students/<id>.
+      UserRole.lecturer =>
+        path.startsWith('/lecturer/') ||
+            path == AppRoutes.logbook ||
+            path == AppRoutes.attendance,
+      // Coordinators don't submit placements, so /internship isn't theirs.
+      UserRole.coordinator => path.startsWith('/coordinator/'),
       null => false,
     };
   }
 
   /// Computes the redirect target for the current route and session.
+  ///
+  /// [from] is the page the user originally asked for. It survives the
+  /// splash screen and the login form, so refreshing a page in the browser
+  /// — or following a link while signed out — lands the user back where
+  /// they meant to go once their session is known.
   static String? redirectFor({
     required String path,
     required AuthSession? session,
     required bool isSessionLoading,
+    String? from,
   }) {
     final isAuthRoute = {
       AppRoutes.login,
       AppRoutes.register,
       AppRoutes.forgotPassword,
     }.contains(path);
+    final target = _safeTarget(from) ?? _safeTarget(path);
 
     if (isSessionLoading || session == null) {
-      return path == AppRoutes.splash ? null : AppRoutes.splash;
+      if (path == AppRoutes.splash) {
+        return null;
+      }
+      // Remember sign-up and password-reset too, so a shared "/register"
+      // link still opens sign-up once the (signed-out) session is known.
+      return _withFrom(AppRoutes.splash, isAuthRoute ? path : target);
     }
 
     if (!session.isAuthenticated) {
-      return isAuthRoute ? null : AppRoutes.login;
+      if (isAuthRoute) {
+        return null;
+      }
+      if (path == AppRoutes.splash &&
+          {AppRoutes.register, AppRoutes.forgotPassword}.contains(from)) {
+        return from;
+      }
+      return _withFrom(AppRoutes.login, target);
     }
 
     if (!session.isEmailVerified) {
@@ -87,7 +105,9 @@ abstract final class AuthRedirects {
         path == AppRoutes.splash ||
         path == AppRoutes.verification ||
         path == AppRoutes.pendingApproval) {
-      return roleDashboard;
+      return target != null && isRouteAllowedForRole(target, session.role)
+          ? target
+          : roleDashboard;
     }
 
     if (!isRouteAllowedForRole(path, session.role)) {
@@ -95,5 +115,30 @@ abstract final class AuthRedirects {
     }
 
     return null;
+  }
+
+  /// Keeps only in-app paths worth returning to. Rejects anything that
+  /// isn't a plain absolute path (`//evil.example`, `https://…`), and the
+  /// auth screens themselves, which are never a destination.
+  static String? _safeTarget(String? path) {
+    if (path == null || !path.startsWith('/') || path.startsWith('//')) {
+      return null;
+    }
+    const notDestinations = {
+      AppRoutes.splash,
+      AppRoutes.login,
+      AppRoutes.register,
+      AppRoutes.forgotPassword,
+      AppRoutes.verification,
+      AppRoutes.pendingApproval,
+    };
+    return notDestinations.contains(path) ? null : path;
+  }
+
+  static String _withFrom(String route, String? target) {
+    if (target == null) {
+      return route;
+    }
+    return Uri(path: route, queryParameters: {fromParam: target}).toString();
   }
 }

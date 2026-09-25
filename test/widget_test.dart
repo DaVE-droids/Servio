@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:servio/app/router/app_router.dart';
 import 'package:servio/app/app.dart';
+import 'package:servio/core/widgets/brand_mark.dart';
 import 'package:servio/features/authentication/presentation/screens/splash_screen.dart';
 
 /// Verifies that the Servio application shell renders its initial route.
@@ -10,10 +11,7 @@ void main() {
   testWidgets('Servio app shell renders', (WidgetTester tester) async {
     final router = GoRouter(
       routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const SplashScreen(),
-        ),
+        GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       ],
     );
 
@@ -25,6 +23,6 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Servio'), findsWidgets);
+    expect(find.byType(BrandMark), findsOneWidget);
   });
 }
