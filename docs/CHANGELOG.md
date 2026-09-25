@@ -361,3 +361,86 @@ The overview only retries network failures (twice). Riverpod's default retries e
 - The audit history loads the latest 300 events (Phase 7 limitation, unchanged).
 - With Flutter's accessibility (screen-reader) mode switched on, the web app logs a framework error — "Null check operator used on a null value" in release builds, "Cannot get renderObject of inactive element" in debug — during screen transitions. It comes from Flutter's own focus code, doesn't interrupt anything, and **does not occur with accessibility mode off**, which was checked by repeating the same login and navigation in the release build.
 - Coordinator accounts still can't be created in the app — they're created by an administrator (the seed script or the Firebase console). PRD scope is a single institution with a small number of coordinators.
+
+## 2026-09-22
+
+**Changed (app code + backend/db + platform config):** a full design pass on every screen, the fixes that a hosted, multi-device app needs, in-app account deletion, and the configuration required to publish on the web and in the app stores. Prompted by the decision to host Servio and prepare store releases.
+
+### The design, and why it looks like this
+
+The UI had no concept behind it: Material defaults, a spinner for every wait, and the same card for everything. It now has one — **the placement journey** — written down in `docs/DESIGN.md` so later screens fit without guesswork.
+
+- **The journey track** (`core/widgets/journey_track.dart`) draws the five stops every placement passes through (Submitted → Approved → Lecturer → Active → Completed). It appears with labels on the student's home and both detail pages, and as dots in coordinator lists, so "where is this placement, and what happens next" is answerable at a glance from any screen. Under ~420px it collapses to "Active · step 4 of 5" rather than overlapping its own labels.
+- **One colour per module** — ink for placement decisions and supervision, sky for attendance, blush for the logbook — carried by an `AppTone` rather than raw colours, so the coding stays consistent. Semantic colours are reserved for real outcomes. Colour never carries meaning alone; there is always a word or number beside it.
+- **Flat surfaces, one typeface.** White cards with hairline borders on a mist background, no drop shadows, and Plus Jakarta Sans bundled in `assets/fonts/` (SIL OFL) so text renders identically everywhere and never depends on a font CDN. Numbers use tabular figures.
+- Reference: the design brief supplied by the owner (a school-dashboard sample). The concept, colour mapping, and component set are Servio's own.
+
+### Screens
+
+Every screen was rebuilt on a shared component set (`SectionCard`, `StatTile`, `InfoRow`/`InfoPanel`, `AppStatusChip`, `AppAvatar`, `PersonHeader`, `ResponsiveColumns`, skeletons, `FadeSlideIn`).
+
+- **One shell for all three roles** (`app/shell/app_shell.dart`) replaces the separate student and coordinator shells: a sidebar and top bar from 900px, an app bar and bottom navigation below. Detail pages use the same shell with a back button, so a coordinator drilling into a student keeps their navigation. Lecturers gained a navigation shell they never had (Home · Students · Reviews · Attendance); previously every lecturer page was a pushed screen.
+- **Student home** leads with the journey card and the next step in one sentence, then today's attendance and logbook — each with its action on the card, so checking in is one tap from home — then progress and recent updates.
+- **Attendance** is now a stamp calendar (`attendance/presentation/widgets/attendance_calendar.dart`): present days stamped sky, checked-in-but-not-out amber, past working days with no record grey. Shared by the student, the lecturer's student detail, and the coordinator's, so all three read attendance the same way.
+- **Logbook** puts today's entry beside earlier ones, with the lecturer's requested changes quoted above the form.
+- **Placements** became the coordinator's pipeline: three stage tiles with live counts (pending review · needs a lecturer · ready to start) that double as the tabs. Cards awaiting review now show the supervisor, dates, and address — a coordinator was previously approving placements without seeing them.
+- **Students** is a table on laptops and cards on phones, with search and status filters. **Lecturers** shows each lecturer's workload as a bar relative to the busiest, making imbalances visible. **Reports** gained a cohort pipeline bar, a coverage bar, and **Copy as CSV** on both tables (a first step toward the export still on the roadmap).
+- **Audit history** is a day-grouped timeline with a coloured dot per module.
+- **Sign-in, sign-up, verification, and awaiting-approval** share one layout with a brand panel that tells the journey; sign-up explains lecturer approval up front and links the Terms and Privacy Policy.
+- **Loading is never a bare spinner.** `AppLoading` renders a skeleton shaped like the content (list, dashboard, or detail). Empty states say what will appear and offer the action that fills them; error states are plain language with a retry.
+- The lecturer's review queue now shows the **whole entry** (skills, challenges, solutions), not just activities and hours — lecturers were approving entries they couldn't fully see.
+
+### Fixes found while doing it
+
+- **The router was rebuilt on every session change.** `userChanges()` fires on Firebase's hourly token refresh, which recreated the `GoRouter` and threw the user back to their dashboard — mid-form, once an hour. The router is now created once and re-checks its redirects through `refreshListenable`; `AuthSession` gained value equality and the session stream `.distinct()`, so an unchanged session no longer ripples through every provider that watches it (which also stopped needless reloads and loading flashes).
+- **Deep links and refreshes lost your place.** The web build used hash URLs, so the server never saw the path; `usePathUrlStrategy()` plus the hosting rewrite gives real URLs, and the redirect rules now carry a `from` parameter through the splash and sign-in so a refresh (or a shared link, or signing in from one) lands where you meant to go. Targets are validated as in-app paths and against the role's permissions, so the parameter can't be used to push someone somewhere they shouldn't be.
+- **Lecturer pages died on refresh.** They received the placement as an in-memory argument, which is gone after a reload; they now take the internship ID from the URL (`/lecturer/students/<id>`) and look it up in the assigned list, which also guarantees the placement really is theirs.
+- **A lecturer could never see a student's attendance.** `getAttendanceHistory` filtered by student only, and the security rules reject any query they can't prove stays inside a lecturer's own records, so it always failed. It now also filters by lecturer when a lecturer is asking. **Backend: added the `attendance (studentId, lecturerId, date desc)` composite index, deployed.**
+- **Progress counts were capped by the page size** — "days attended" stopped at 30 because it counted loaded rows. They now use `count()` aggregations (about one read per thousand records), scoped per role so students, lecturers, and coordinators each count only what the rules allow.
+- Dates were formatted in local time although calendar days are stored as midnight UTC, which shows the previous day for anyone west of Greenwich. One `Formatters` helper now handles both kinds of value, with tests.
+- Removed the free-text "Profile Photo URL" field, which let anyone point their avatar at any address on the web.
+- Deleted the last unused scaffolding: the old shells, `DashboardSummaryCard`, `AuthenticatedPlaceholderScreen`, and the unused student-logbook provider.
+
+### Account deletion (required by both app stores)
+
+Profile → **Delete my account**, confirmed with the account password. It deletes the sign-in, the profile document, and the profile photo, and writes a `deleted_account` audit event in the same batch as the profile deletion. Placement, attendance, logbook, and supervision records stay: they are the institution's academic records, and `web/privacy.html` says so plainly. Photo deletion is best-effort — a Storage outage must never stop someone deleting their account.
+
+**Backend (rules deployed):** `users` gained `allow delete: if isOwner(userId)` (nobody else can delete a profile), and `storage.rules` gained `allow delete` on `profile_photos/{userId}/…` — deleting sends no file, so it could never pass the upload validation.
+
+### Storage is unavailable on the current plan — photo uploads switched off
+
+Checked with the Admin SDK on 2026-09-22: every write to the bucket returns *"The billing account for the owning project is disabled in state closed"*. The project's `*.firebasestorage.app` bucket needs Blaze (Firebase's October 2024 change); setting the bucket's CORS rule fails for the same reason, so a browser couldn't display photos either. No account has a photo set, so nothing visible broke — but the upload button would only ever show an error.
+
+`AppConstants.profilePhotoUploadsEnabled` is therefore `false`, which hides the upload control; everyone gets an initials avatar. `docs/DEPLOYMENT.md` has the two steps to reverse this after enabling Blaze.
+
+### Hosting, and the security headers
+
+`firebase.json` now carries the hosting configuration: every path serves the app, HSTS, `nosniff`, `X-Frame-Options: DENY`, a referrer policy, a permissions policy that switches camera, microphone, geolocation, payment, and USB off, and a Content-Security-Policy limiting scripts to this site and Google's CDN and network calls to Firebase, Google Fonts, and LocationIQ. Caching makes browsers re-check the app on every visit (cheap 304s) while images and fonts last a day.
+
+Two decisions worth recording. **Inline scripts are allowed** because the Firebase web SDK injects its own loader scripts at start-up; the alternative (pinning their fingerprints) silently breaks the site on the next Firebase upgrade. Everything else stays restricted, and a Flutter app renders to a canvas rather than HTML, so the usual injection routes don't apply. **Flutter's service worker is not registered** (`web/flutter_bootstrap.js`): it is deprecated and known for serving a stale build after a deploy; the cache headers do the job instead.
+
+`web/index.html` shows a branded loading screen immediately, so a visitor never waits on a blank page while the app downloads, and it fades on Flutter's first frame. Also added: `web/privacy.html`, `web/terms.html` (both with `[bracketed]` placeholders for the operator to fill in), `robots.txt`, an SVG favicon, and proper link-preview and installable-app metadata.
+
+All of this was verified against the local hosting emulator with the real headers, driving the built site in Chrome as all three roles — which is how the CSP problem, the hash-URL problem, and the lecturer attendance bug were found.
+
+### Mobile release configuration
+
+- **Android:** app label "Servio"; `INTERNET` declared (Flutter only adds it to debug builds, so release builds could not reach Firebase); `allowBackup="false"`; `<queries>` for the web, maps, and camera hand-offs; release signing that reads a gitignored `android/key.properties` and falls back to the debug key so nothing breaks without it.
+- **iOS:** camera and photo-library usage descriptions in plain language, `ITSAppUsesNonExemptEncryption=false`, deployment target raised to 16 to match the Podfile and Firebase, and `PrivacyInfo.xcprivacy` declaring what Servio collects and that it does not track.
+- **Icons and splash:** generated from `assets/brand/` by `tool/generate_brand_assets.py` (the placeholder mark, drawn from the same geometry as the in-app logo), then `flutter_launcher_icons` and `flutter_native_splash`. The native splash and the app's own splash screen show the same mark at the same size, so launching is one continuous image.
+- **Still the owner's to do:** the app ID is `com.example.servio`, which Play rejects and which can never change after the first upload. See `docs/STORE_RELEASE.md`.
+
+### Documentation
+
+New: `docs/DESIGN.md` (the concept and the rules for new screens), `docs/PERMISSIONS.md` (every permission, where it's declared, how to add or remove one, and how to debug "it won't let it in"), `docs/DEPLOYMENT.md` (deploying the site, the free-plan limits, what changes after Blaze), `docs/STORE_RELEASE.md` (what's done and what needs an account or a payment), and `docs/BRANDING.md` (swapping in the real logo).
+
+**Tests:** 105 passing, clean `flutter analyze`, release builds succeed for web and Android. Added tests for the app shell's layout and section matching, date formatting (the UTC rule above), the journey mapping, the deep-link redirect rules including rejection of non-app targets, and the account-deletion audit event.
+
+### Known limitations after this work
+
+- Push notifications still need Blaze (unchanged).
+- Profile photos are off until Blaze (above).
+- No crash reporting yet; Crashlytics is free but needs native setup.
+- Coordinator screens still load every student, lecturer, and placement at once, and the audit history still loads the latest 300 events.
+- The `country_state_city` package bundles a 25 MB city list that Servio never reads (it uses countries and states only). It costs hosting storage and mobile app size, not page-load time.
+- The Dart SDK constraint still points at a pre-release channel, and the toolchain is on Flutter's master channel — worth pinning to stable before a real launch.

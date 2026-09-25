@@ -28,7 +28,7 @@ Every step is saved, the people involved are notified, and every important actio
 - Check in and check out each day, and see their attendance history
 - Write one logbook entry per day, and edit it until the lecturer reviews it
 - Read notifications
-- Edit their profile and photo
+- Edit their profile, and delete their account if they want to leave
 
 ### Lecturer
 - Create an account (it must be **approved by a coordinator** before it does anything)
@@ -40,7 +40,7 @@ Every step is saved, the people involved are notified, and every important actio
 - Read notifications
 
 ### Coordinator
-The coordinator has four sections along the bottom (or down the left on a laptop):
+Everyone gets the same shape of app: four sections (along the bottom on a phone, down the left on a laptop), with notifications and their profile in the top bar. The coordinator's four are:
 
 | Section | What it's for |
 |---|---|
@@ -49,7 +49,9 @@ The coordinator has four sections along the bottom (or down the left on a laptop
 | **Lecturers** | **Approve lecturers who signed up**; see each lecturer's students and workload; deactivate an account |
 | **Reports** | Placement numbers, which active students haven't been visited yet, a progress table for every student, and lecturer workload |
 
-The icons at the top open the **audit history** (everything that happened, who did it, and when — filterable), notifications, and profile.
+The icons at the top open the **audit history** (everything that happened, who did it, and when — filterable), notifications, and the profile menu.
+
+Students see: Home, Placement, Attendance, Logbook. Lecturers see: Home, Students, Reviews, Attendance.
 
 ---
 
@@ -79,11 +81,12 @@ flutter run --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token
 flutter run -d chrome --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token
 ```
 
-**Building the website for hosting:**
+**Publishing the website:**
 ```
 flutter build web --release --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token
+firebase deploy --only hosting
 ```
-The finished site is in `build/web/`. It can be hosted on Firebase Hosting, which is free on your current plan. It hasn't been published anywhere yet.
+This puts the site at `https://servio-e2974.web.app`, free on your current plan. Step-by-step (including how to preview it privately first, and how to roll back): `DEPLOYMENT.md`. Publishing to the App Store and Google Play: `STORE_RELEASE.md`.
 
 ---
 
@@ -126,15 +129,21 @@ Use a laptop browser for the coordinator and a phone or simulator for everyone e
 |---|---|
 | **Push notifications** (alerts when the app is closed) | Sending them needs a small server program (Cloud Functions), which needs Firebase's paid **Blaze** plan. Blaze only charges beyond the same free allowance you have now, but it needs a billing account. Everything is already in place for it; in-app notifications with the unread badge cover the same events meanwhile. |
 | Photos on visit reports | Marked "should have" in the requirements, not "must have". Needs a storage location adding. |
+| **Profile photos** | Firebase now requires the paid Blaze plan for file storage, and every upload is refused on the free plan. The button is hidden until you upgrade; everyone gets their initials in a coloured tile meanwhile. |
 | Exporting reports (PDF/spreadsheet) | Reports are on-screen for now. |
 | Charts and analytics | Your PRD moves these to Version 2. |
 | Settings screen | Not in the MVP scope, and nothing needed it. |
 
 ---
 
+## Deleting an account
+
+Anyone can delete their own account: **profile picture (top right) → Profile & settings → Delete my account**, confirmed with their password. It removes their sign-in and their profile. Their placement, attendance, logbook, and visit records stay, because those are the institution's academic records — the privacy policy says so. Both app stores require this, which is why it exists.
+
 ## Known issues
 
 - **Screen-reader mode on web logs a harmless error.** With a browser screen reader switched on, Flutter itself logs an error while changing screens. It doesn't stop anything working and doesn't happen with the screen reader off.
+- **No crash reporting yet.** If the app misbehaves for someone, there's nothing recording it centrally. Worth adding (Firebase Crashlytics, free) before a real launch.
 - **Very large institutions.** Coordinator screens load every student and placement at once. That's fine for a pilot. It would need paging once there are thousands of records.
 - **Lecturers can view any student's profile**, not only their assigned students'. The database rules can't check the assignment from where the profile is stored. Lecturers still can't see other lecturers' students' attendance, logbooks, or placements.
 - **Old records.** A few records created in early testing are missing fields added later (for example, one internship has no country). The app now reads these safely instead of failing.

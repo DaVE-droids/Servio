@@ -90,6 +90,24 @@ Build out `lib/features/activity/` and `lib/features/audit/`, again retrofitting
 
 **Original plan:** Build out `lib/features/reports/` and the remaining Coordinator screens (`/coordinator/students`, `/coordinator/lecturers`) now that the underlying data (attendance, logbook, supervision, audit) actually exists to report on.
 
+## Hosting and store preparation (2026-09-22)
+
+A design pass over every screen (see `docs/DESIGN.md` for the concept), the
+fixes a hosted multi-device app needs (real URLs that survive a refresh, a
+router that no longer resets on the hourly token refresh, per-role scoped
+queries), in-app account deletion for the app stores, and the web hosting
+configuration with security headers. Full detail in `docs/CHANGELOG.md`.
+
+**Still open from this phase:**
+- The site has not been deployed yet: the owner wants to run the deploy
+  together (`docs/DEPLOYMENT.md`), and the legal pages still need the
+  operator's name and contact email.
+- The app ID is still `com.example.servio`, which Google Play rejects and
+  which can never change after the first upload (`docs/STORE_RELEASE.md`).
+- Profile photo uploads are switched off: Cloud Storage now refuses every
+  write on the free plan.
+- No crash reporting yet (Crashlytics needs native setup).
+
 ## MVP status (2026-09-15)
 
 Every item in PRD §18's MVP scope is built **except push notifications**, which need Cloud Functions and therefore the Blaze plan (in-app notifications cover the same events). PRD §21's success definition — completing an entire placement cycle in the platform — was demonstrated end to end.
