@@ -1,17 +1,21 @@
-/// Border radius tokens defined by the Servio Design System.
+/// Corner radius tokens. Cards are generously rounded; controls less so,
+/// so a button never looks like a card.
 abstract final class AppRadii {
-  /// Button and input radius.
+  /// Buttons, inputs, and small tiles.
   static const double control = 12;
 
-  /// Card radius.
-  static const double card = 16;
+  /// Stat tiles and inner panels.
+  static const double tile = 16;
 
-  /// Dialog radius.
-  static const double dialog = 20;
+  /// Cards.
+  static const double card = 20;
 
-  /// Chip radius.
-  static const double chip = 20;
+  /// Dialogs.
+  static const double dialog = 24;
 
-  /// Bottom sheet radius.
-  static const double bottomSheet = 24;
+  /// Status pills.
+  static const double chip = 999;
+
+  /// Bottom sheets.
+  static const double bottomSheet = 28;
 }
