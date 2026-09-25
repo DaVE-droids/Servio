@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show TextInput;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/constants/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../data/models/auth_requests.dart';
 import '../../domain/auth_validator.dart';
 import '../providers/authentication_providers.dart';
+import '../widgets/auth_layout.dart';
 
-/// Email/password login screen.
+/// Email/password sign-in.
 class LoginScreen extends ConsumerStatefulWidget {
   /// Creates a login screen.
   const LoginScreen({super.key});
@@ -35,68 +38,73 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authenticationControllerProvider);
+    final textTheme = Theme.of(context).textTheme;
 
     ref.listen(authenticationControllerProvider, (previous, next) {
       final error = next.errorMessage;
-      if (error != null) {
+      if (error != null && error != previous?.errorMessage) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error)));
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            shrinkWrap: true,
-            children: [
-              Text(
-                'Welcome back',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                label: 'Email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                errorText: _emailError,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Password',
-                controller: _passwordController,
-                obscureText: true,
-                errorText: _passwordError,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => context.go(AppRoutes.forgotPassword),
-                  child: const Text('Forgot Password'),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Login',
-                isLoading: authState.isLoading,
-                onPressed: _submit,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Create Account',
-                variant: AppButtonVariant.text,
-                onPressed: () => context.go(AppRoutes.register),
-              ),
-            ],
+    return AuthLayout(
+      eyebrow: 'Welcome back',
+      title: 'Sign in to Servio',
+      subtitle: 'Use the email you registered with.',
+      children: [
+        AppTextField(
+          label: 'Email',
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          prefixIcon: Icons.mail_outline,
+          textInputAction: TextInputAction.next,
+          autofillHints: const [AutofillHints.email, AutofillHints.username],
+          errorText: _emailError,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppTextField(
+          label: 'Password',
+          controller: _passwordController,
+          obscureText: true,
+          prefixIcon: Icons.lock_outline,
+          textInputAction: TextInputAction.done,
+          autofillHints: const [AutofillHints.password],
+          onSubmitted: (_) => _submit(),
+          errorText: _passwordError,
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => context.push(AppRoutes.forgotPassword),
+            child: const Text('Forgot password?'),
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.xs),
+        AppButton(
+          label: 'Sign in',
+          isLoading: authState.isLoading,
+          onPressed: _submit,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'New to Servio?',
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.register),
+              child: const Text('Create an account'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -111,6 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    TextInput.finishAutofillContext();
     await ref
         .read(authenticationControllerProvider.notifier)
         .login(

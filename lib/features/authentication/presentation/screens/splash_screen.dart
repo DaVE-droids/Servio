@@ -1,42 +1,34 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
-import '../../../../app/theme/app_spacing.dart';
+import '../../../../core/widgets/brand_mark.dart';
 
 /// Shown for the moment between launch and the auth session resolving.
 ///
-/// The router sends every path here while the session is loading, then
-/// redirects to login, email verification, or the right dashboard — so
-/// this screen never needs any logic of its own.
+/// Matches the native launch screen (a centred mark on white), so opening
+/// the app is one continuous image rather than a flash between two. The
+/// router sends every path here while the session loads, then on to
+/// sign-in or the right home — so this screen has no logic of its own.
 class SplashScreen extends StatelessWidget {
   /// Creates the splash screen.
   const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
+      backgroundColor: AppColors.surface,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.work_outline, size: 56, color: AppColors.primary),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Servio',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w700,
+            BrandMark(size: 96),
+            SizedBox(height: 28),
+            SizedBox(
+              width: 96,
+              child: LinearProgressIndicator(
+                minHeight: 3,
+                borderRadius: BorderRadius.all(Radius.circular(2)),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              'Field placement management',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
           ],
         ),

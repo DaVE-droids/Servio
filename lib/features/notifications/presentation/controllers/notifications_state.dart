@@ -3,10 +3,7 @@ import '../../data/models/notification_model.dart';
 /// UI state for the notifications list.
 class NotificationsState {
   /// Creates notifications UI state.
-  const NotificationsState({
-    this.notifications = const [],
-    this.errorMessage,
-  });
+  const NotificationsState({this.notifications = const [], this.errorMessage});
 
   /// Notifications, most recent first.
   final List<NotificationModel> notifications;

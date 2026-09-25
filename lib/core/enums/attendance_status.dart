@@ -42,7 +42,11 @@ extension AttendanceStatusSerialization on AttendanceStatus {
       'completed' => AttendanceStatus.completed,
       'missed' => AttendanceStatus.missed,
       'incomplete' => AttendanceStatus.incomplete,
-      _ => throw ArgumentError.value(value, 'value', 'Unknown attendance status'),
+      _ => throw ArgumentError.value(
+        value,
+        'value',
+        'Unknown attendance status',
+      ),
     };
   }
 }

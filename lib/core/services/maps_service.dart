@@ -144,8 +144,7 @@ class MapsService {
     if (_locationIqAccessToken.isEmpty) {
       return const Failure(
         AppFailure(
-          message:
-              'Address search is not configured. Please contact support.',
+          message: 'Address search is not configured. Please contact support.',
           type: FailureType.unknown,
           code: 'locationiq-key-missing',
         ),

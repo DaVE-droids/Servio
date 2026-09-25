@@ -1,15 +1,21 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/constants/app_constants.dart';
 import '../../../../app/constants/app_routes.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_tone.dart';
 import '../../../../core/enums/user_role.dart';
+import '../../../../core/utils/external_links.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../data/models/auth_requests.dart';
 import '../../domain/auth_validator.dart';
 import '../providers/authentication_providers.dart';
+import '../widgets/auth_layout.dart';
 
 /// Email/password registration for students and lecturers.
 ///
@@ -54,120 +60,228 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authenticationControllerProvider);
+    final textTheme = Theme.of(context).textTheme;
 
     ref.listen(authenticationControllerProvider, (previous, next) {
       final error = next.errorMessage;
-      if (error != null) {
+      if (error != null && error != previous?.errorMessage) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error)));
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              Text(
-                'Create your account',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SegmentedButton<UserRole>(
-                segments: const [
-                  ButtonSegment(
-                    value: UserRole.student,
-                    label: Text('Student'),
-                    icon: Icon(Icons.school_outlined),
-                  ),
-                  ButtonSegment(
-                    value: UserRole.lecturer,
-                    label: Text('Lecturer'),
-                    icon: Icon(Icons.badge_outlined),
-                  ),
-                ],
-                selected: {_role},
-                onSelectionChanged: (selection) => setState(() {
-                  _role = selection.first;
-                  _errors.remove('matricNumber');
-                }),
-              ),
-              if (_isLecturer) ...[
+    Widget pair(Widget first, Widget second) => LayoutBuilder(
+      builder: (context, constraints) => constraints.maxWidth < 420
+          ? Column(
+              children: [
+                first,
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Lecturer accounts are reviewed by a coordinator before '
-                  'they can be used. You will be able to sign in, and your '
-                  'access starts once you are approved.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                second,
               ],
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                label: 'First Name',
-                controller: _firstNameController,
-                errorText: _errors['firstName'],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Last Name',
-                controller: _lastNameController,
-                errorText: _errors['lastName'],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                errorText: _errors['email'],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Password',
-                controller: _passwordController,
-                obscureText: true,
-                errorText: _errors['password'],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Department',
-                controller: _departmentController,
-                errorText: _errors['department'],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: _isLecturer ? 'Staff ID' : 'Matric Number',
-                controller: _matricNumberController,
-                errorText: _errors['matricNumber'],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(
-                label: 'Phone Number',
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppTextField(label: 'Faculty', controller: _facultyController),
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: 'Create Account',
-                isLoading: authState.isLoading,
-                onPressed: _submit,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Back to Login',
-                variant: AppButtonVariant.text,
-                onPressed: () => context.go(AppRoutes.login),
-              ),
-            ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: first),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: second),
+              ],
+            ),
+    );
+
+    return AuthLayout(
+      eyebrow: 'Get started',
+      title: 'Create your account',
+      subtitle:
+          'Takes about a minute. We’ll send a link to confirm your email.',
+      maxFormWidth: 520,
+      children: [
+        SegmentedButton<UserRole>(
+          showSelectedIcon: false,
+          segments: const [
+            ButtonSegment(
+              value: UserRole.student,
+              label: Text('I’m a student'),
+              icon: Icon(Icons.school_outlined),
+            ),
+            ButtonSegment(
+              value: UserRole.lecturer,
+              label: Text('I’m a lecturer'),
+              icon: Icon(Icons.badge_outlined),
+            ),
+          ],
+          selected: {_role},
+          onSelectionChanged: (selection) => setState(() {
+            _role = selection.first;
+            _errors.remove('matricNumber');
+          }),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          child: _isLecturer
+              ? Container(
+                  margin: const EdgeInsets.only(top: AppSpacing.sm),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppTone.sky.background,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: AppColors.skyStrong,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          'A coordinator approves lecturer accounts before '
+                          'they can see students. You can sign in straight '
+                          'away; access starts once you’re approved.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: AppColors.inkDeep,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox(width: double.infinity),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        pair(
+          AppTextField(
+            label: 'First name',
+            controller: _firstNameController,
+            textCapitalization: TextCapitalization.words,
+            autofillHints: const [AutofillHints.givenName],
+            textInputAction: TextInputAction.next,
+            errorText: _errors['firstName'],
+          ),
+          AppTextField(
+            label: 'Last name',
+            controller: _lastNameController,
+            textCapitalization: TextCapitalization.words,
+            autofillHints: const [AutofillHints.familyName],
+            textInputAction: TextInputAction.next,
+            errorText: _errors['lastName'],
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        AppTextField(
+          label: 'Email',
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          prefixIcon: Icons.mail_outline,
+          autofillHints: const [AutofillHints.email],
+          textInputAction: TextInputAction.next,
+          errorText: _errors['email'],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppTextField(
+          label: 'Password',
+          controller: _passwordController,
+          obscureText: true,
+          prefixIcon: Icons.lock_outline,
+          autofillHints: const [AutofillHints.newPassword],
+          helperText: 'At least 8 characters.',
+          textInputAction: TextInputAction.next,
+          errorText: _errors['password'],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        pair(
+          AppTextField(
+            label: 'Department',
+            controller: _departmentController,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            errorText: _errors['department'],
+          ),
+          AppTextField(
+            label: _isLecturer ? 'Staff ID' : 'Matric number',
+            controller: _matricNumberController,
+            textCapitalization: TextCapitalization.characters,
+            autocorrect: false,
+            textInputAction: TextInputAction.next,
+            errorText: _errors['matricNumber'],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        pair(
+          AppTextField(
+            label: 'Phone (optional)',
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            textInputAction: TextInputAction.next,
+          ),
+          AppTextField(
+            label: 'Faculty (optional)',
+            controller: _facultyController,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: 'Create account',
+          isLoading: authState.isLoading,
+          onPressed: _submit,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text.rich(
+          TextSpan(
+            style: textTheme.bodySmall,
+            children: [
+              const TextSpan(text: 'By creating an account you agree to the '),
+              TextSpan(
+                text: 'Terms',
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () =>
+                      openExternalLink(context, AppConstants.termsUrl),
+              ),
+              const TextSpan(text: ' and '),
+              TextSpan(
+                text: 'Privacy Policy',
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () =>
+                      openExternalLink(context, AppConstants.privacyPolicyUrl),
+              ),
+              const TextSpan(text: '.'),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Already have an account?',
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.login),
+              child: const Text('Sign in'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

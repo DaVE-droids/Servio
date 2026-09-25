@@ -8,8 +8,9 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../domain/auth_validator.dart';
 import '../providers/authentication_providers.dart';
+import '../widgets/auth_layout.dart';
 
-/// Forgot password screen for email reset requests.
+/// Password reset by email.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   /// Creates a forgot password screen.
   const ForgotPasswordScreen({super.key});
@@ -35,55 +36,47 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     ref.listen(authenticationControllerProvider, (previous, next) {
       final message = next.errorMessage ?? next.successMessage;
-      if (message != null) {
+      if (message != null &&
+          message != (previous?.errorMessage ?? previous?.successMessage)) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(message)));
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Forgot Password')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            shrinkWrap: true,
-            children: [
-              Text(
-                'Reset your password',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Enter your account email and Servio will send a password reset link.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppTextField(
-                label: 'Email',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                errorText: _emailError,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                label: 'Send Reset Link',
-                isLoading: authState.isLoading,
-                onPressed: _submit,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppButton(
-                label: 'Back to Login',
-                variant: AppButtonVariant.text,
-                onPressed: () => context.go(AppRoutes.login),
-              ),
-            ],
-          ),
+    return AuthLayout(
+      eyebrow: 'Password reset',
+      title: 'Forgot your password?',
+      subtitle:
+          'Enter your account email and we’ll send you a link to choose a '
+          'new one.',
+      children: [
+        AppTextField(
+          label: 'Email',
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          prefixIcon: Icons.mail_outline,
+          autofillHints: const [AutofillHints.email],
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submit(),
+          errorText: _emailError,
         ),
-      ),
+        const SizedBox(height: AppSpacing.md),
+        AppButton(
+          label: 'Send reset link',
+          isLoading: authState.isLoading,
+          onPressed: _submit,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        AppButton(
+          label: 'Back to sign in',
+          variant: AppButtonVariant.text,
+          icon: Icons.arrow_back_rounded,
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(AppRoutes.login),
+        ),
+      ],
     );
   }
 
