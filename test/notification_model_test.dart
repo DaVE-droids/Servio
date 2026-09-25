@@ -78,22 +78,25 @@ void main() {
       expect(notification.isRead, isFalse);
     });
 
-    test('addresses the assignment notice to the lecturer, not the student', () {
-      final notification = NotificationFactory.studentAssignedToLecturer(
-        notificationId: 'notif-2',
-        lecturerId: 'lecturer-1',
-        internshipId: 'int-1',
-        studentName: 'Amaka Nwosu',
-        companyName: 'MTN Nigeria',
-        coordinatorId: 'coordinator-1',
-        coordinatorName: 'Grace Okon',
-        createdAt: DateTime.utc(2026, 9, 3),
-      );
+    test(
+      'addresses the assignment notice to the lecturer, not the student',
+      () {
+        final notification = NotificationFactory.studentAssignedToLecturer(
+          notificationId: 'notif-2',
+          lecturerId: 'lecturer-1',
+          internshipId: 'int-1',
+          studentName: 'Amaka Nwosu',
+          companyName: 'MTN Nigeria',
+          coordinatorId: 'coordinator-1',
+          coordinatorName: 'Grace Okon',
+          createdAt: DateTime.utc(2026, 9, 3),
+        );
 
-      expect(notification.recipientId, 'lecturer-1');
-      expect(notification.recipientRole, 'lecturer');
-      expect(notification.message, contains('Amaka Nwosu'));
-    });
+        expect(notification.recipientId, 'lecturer-1');
+        expect(notification.recipientRole, 'lecturer');
+        expect(notification.message, contains('Amaka Nwosu'));
+      },
+    );
 
     test('completion notifies the student', () {
       final notification = NotificationFactory.internshipCompleted(

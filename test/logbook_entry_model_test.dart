@@ -62,7 +62,10 @@ void main() {
 
     final json = entry.toJson();
     expect(json['status'], 'changes_requested');
-    expect(json['lecturerComments'], 'Please add more detail on the challenges faced.');
+    expect(
+      json['lecturerComments'],
+      'Please add more detail on the challenges faced.',
+    );
 
     final roundTripped = LogbookEntryModel.fromJson(json);
     expect(roundTripped.status, LogbookStatus.changesRequested);

@@ -28,10 +28,7 @@ void main() {
         clearMessages: true,
         successMessage: 'Internship placement submitted for review.',
       );
-      expect(
-        next.successMessage,
-        'Internship placement submitted for review.',
-      );
+      expect(next.successMessage, 'Internship placement submitted for review.');
       expect(next.errorMessage, isNull, reason: 'stale error must not leak');
     });
   });
@@ -49,9 +46,7 @@ void main() {
     });
 
     test('an explicit error message survives clearMessages', () {
-      const state = SupervisionReportState(
-        successMessage: 'stale success',
-      );
+      const state = SupervisionReportState(successMessage: 'stale success');
       final next = state.copyWith(
         isSubmitting: false,
         clearMessages: true,

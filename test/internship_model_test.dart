@@ -144,44 +144,47 @@ void main() {
     expect(roundTripped.assignedAt, DateTime.utc(2026, 8, 2));
   });
 
-  test('round-trips an active internship with lecturerName and activatedAt', () {
-    final internship = InternshipModel(
-      internshipId: 'int-1',
-      studentId: 'student-1',
-      studentName: 'David Adeyemi',
-      studentMatricNumber: 'CSC/2022/001',
-      coordinatorId: 'coordinator-1',
-      lecturerId: 'lecturer-1',
-      lecturerName: 'Dr. Samuel Johnson',
-      status: InternshipStatus.active,
-      companyName: 'MTN Nigeria',
-      companyAddress: 'Victoria Island, Lagos',
-      companyLatitude: 6.4281,
-      companyLongitude: 3.4219,
-      companySupervisorName: 'Jane Doe',
-      companySupervisorPhone: '+2348012345678',
-      department: 'Computer Science',
-      country: 'Nigeria',
-      state: 'Lagos',
-      startDate: DateTime.utc(2026, 8),
-      endDate: DateTime.utc(2026, 12),
-      submittedAt: DateTime.utc(2026, 7, 31),
-      approvedAt: DateTime.utc(2026, 8, 1),
-      assignedAt: DateTime.utc(2026, 8, 2),
-      activatedAt: DateTime.utc(2026, 8, 3),
-      createdAt: DateTime.utc(2026, 7, 31),
-      updatedAt: DateTime.utc(2026, 8, 3),
-    );
+  test(
+    'round-trips an active internship with lecturerName and activatedAt',
+    () {
+      final internship = InternshipModel(
+        internshipId: 'int-1',
+        studentId: 'student-1',
+        studentName: 'David Adeyemi',
+        studentMatricNumber: 'CSC/2022/001',
+        coordinatorId: 'coordinator-1',
+        lecturerId: 'lecturer-1',
+        lecturerName: 'Dr. Samuel Johnson',
+        status: InternshipStatus.active,
+        companyName: 'MTN Nigeria',
+        companyAddress: 'Victoria Island, Lagos',
+        companyLatitude: 6.4281,
+        companyLongitude: 3.4219,
+        companySupervisorName: 'Jane Doe',
+        companySupervisorPhone: '+2348012345678',
+        department: 'Computer Science',
+        country: 'Nigeria',
+        state: 'Lagos',
+        startDate: DateTime.utc(2026, 8),
+        endDate: DateTime.utc(2026, 12),
+        submittedAt: DateTime.utc(2026, 7, 31),
+        approvedAt: DateTime.utc(2026, 8, 1),
+        assignedAt: DateTime.utc(2026, 8, 2),
+        activatedAt: DateTime.utc(2026, 8, 3),
+        createdAt: DateTime.utc(2026, 7, 31),
+        updatedAt: DateTime.utc(2026, 8, 3),
+      );
 
-    final json = internship.toJson();
-    expect(json['status'], 'active');
-    expect(json['lecturerName'], 'Dr. Samuel Johnson');
+      final json = internship.toJson();
+      expect(json['status'], 'active');
+      expect(json['lecturerName'], 'Dr. Samuel Johnson');
 
-    final roundTripped = InternshipModel.fromJson(json);
-    expect(roundTripped.status, InternshipStatus.active);
-    expect(roundTripped.lecturerName, 'Dr. Samuel Johnson');
-    expect(roundTripped.activatedAt, DateTime.utc(2026, 8, 3));
-  });
+      final roundTripped = InternshipModel.fromJson(json);
+      expect(roundTripped.status, InternshipStatus.active);
+      expect(roundTripped.lecturerName, 'Dr. Samuel Johnson');
+      expect(roundTripped.activatedAt, DateTime.utc(2026, 8, 3));
+    },
+  );
 
   test('parses a placement stored before the country field existed', () {
     final internship = InternshipModel.fromJson({

@@ -6,7 +6,12 @@ import 'package:servio/features/internship/data/models/internship_model.dart';
 import 'package:servio/features/profile/data/models/user_model.dart';
 import 'package:servio/features/reports/data/models/internship_progress.dart';
 
-UserModel _user(String uid, UserRole role, {bool isActive = true, String department = 'Computer Science'}) {
+UserModel _user(
+  String uid,
+  UserRole role, {
+  bool isActive = true,
+  String department = 'Computer Science',
+}) {
   return UserModel(
     uid: uid,
     firstName: uid,
@@ -60,10 +65,18 @@ void main() {
         students: [_user('amaka', UserRole.student)],
         lecturers: const [],
         internships: [
-          _internship('old', 'amaka', InternshipStatus.rejected,
-              createdAt: DateTime.utc(2026, 9, 1)),
-          _internship('new', 'amaka', InternshipStatus.pendingReview,
-              createdAt: DateTime.utc(2026, 9, 5)),
+          _internship(
+            'old',
+            'amaka',
+            InternshipStatus.rejected,
+            createdAt: DateTime.utc(2026, 9, 1),
+          ),
+          _internship(
+            'new',
+            'amaka',
+            InternshipStatus.pendingReview,
+            createdAt: DateTime.utc(2026, 9, 5),
+          ),
         ],
         progress: const {},
       );
@@ -75,10 +88,18 @@ void main() {
         students: [_user('amaka', UserRole.student)],
         lecturers: const [],
         internships: [
-          _internship('active', 'amaka', InternshipStatus.active,
-              createdAt: DateTime.utc(2026, 9, 1)),
-          _internship('stray', 'amaka', InternshipStatus.rejected,
-              createdAt: DateTime.utc(2026, 9, 9)),
+          _internship(
+            'active',
+            'amaka',
+            InternshipStatus.active,
+            createdAt: DateTime.utc(2026, 9, 1),
+          ),
+          _internship(
+            'stray',
+            'amaka',
+            InternshipStatus.rejected,
+            createdAt: DateTime.utc(2026, 9, 9),
+          ),
         ],
         progress: const {},
       );
@@ -112,7 +133,10 @@ void main() {
     );
 
     test('current load excludes completed placements', () {
-      expect(overview.activeLoadFor('eze').map((i) => i.internshipId), ['a', 'b']);
+      expect(overview.activeLoadFor('eze').map((i) => i.internshipId), [
+        'a',
+        'b',
+      ]);
     });
 
     test('all-time supervision includes completed placements', () {
@@ -172,6 +196,9 @@ void main() {
       internships: const [],
       progress: const {},
     );
-    expect(overview.departments, ['Computer Science', 'Electrical Engineering']);
+    expect(overview.departments, [
+      'Computer Science',
+      'Electrical Engineering',
+    ]);
   });
 }
