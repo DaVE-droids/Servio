@@ -81,10 +81,10 @@ Play App Signing at first upload protects against this — do it.)
 
 ```bash
 # Android (upload this .aab to Play)
-flutter build appbundle --release --dart-define=LOCATIONIQ_ACCESS_TOKEN=<token>
+flutter build appbundle --release --dart-define-from-file=env.local.json
 
 # iOS (then Xcode → Product → Archive → Distribute)
-flutter build ipa --release --dart-define=LOCATIONIQ_ACCESS_TOKEN=<token>
+flutter build ipa --release --dart-define-from-file=env.local.json
 ```
 
 Bump `version:` in `pubspec.yaml` before each upload — the build number

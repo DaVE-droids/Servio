@@ -56,3 +56,10 @@ scripts/servio-account.json
 firepit-log.txt
 firebase-debug.log
 firestore-debug.log
+
+# Build-time secrets. env.local.json holds the LocationIQ token; it is read
+# by `flutter build ... --dart-define-from-file=env.local.json` and must
+# never be committed. Copy env.example.json to create it.
+env.local.json
+.env
+.env.local

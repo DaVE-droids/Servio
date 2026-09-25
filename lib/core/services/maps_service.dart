@@ -43,9 +43,9 @@ class AddressSuggestion {
 }
 
 /// LocationIQ access token, supplied at build/run time so it's never
-/// hardcoded or committed. Pass with:
-/// `flutter run --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token`
-/// See docs/LOCATION_SERVICES.md.
+/// hardcoded or committed. It lives in the gitignored `env.local.json`:
+/// `flutter run --dart-define-from-file=env.local.json`
+/// See docs/LOCATION_SERVICES.md and docs/DEPLOYMENT.md.
 const _locationIqAccessToken = String.fromEnvironment(
   'LOCATIONIQ_ACCESS_TOKEN',
 );

@@ -8,13 +8,22 @@ whole deploy takes about two minutes.
 
 ## Before the first deploy
 
-1. **A LocationIQ token.** It's compiled into the build and is what makes
-   the company address search work. Get it from
-   <https://my.locationiq.com> → Access Tokens.
-   Then restrict it in the LocationIQ dashboard to the site's domains
-   (`servio-e2974.web.app`, `servio-e2974.firebaseapp.com`) — the token is
-   visible to anyone who views the page source, and the restriction is what
-   stops it being used elsewhere.
+1. **A LocationIQ token** in `env.local.json`. It makes the company
+   address search work, and every build reads it from that file:
+
+   ```json
+   { "LOCATIONIQ_ACCESS_TOKEN": "pk.your_token" }
+   ```
+
+   Get the token from <https://my.locationiq.com> → Access Tokens, and
+   paste it into `env.local.json` (copy `env.example.json` if the file is
+   missing). **It is gitignored and must stay that way.**
+
+   Then restrict the token in the LocationIQ dashboard to the site's
+   domains (`servio-e2974.web.app`, `servio-e2974.firebaseapp.com`). The
+   token ends up inside the compiled app, as it does for any browser app,
+   so anyone can read it off the live site — the domain restriction, not
+   secrecy, is what stops it being used elsewhere.
 2. **Fill in the legal pages.** Replace `[Operator name]` and
    `[contact email]` in `web/privacy.html` and `web/terms.html`.
 
@@ -23,7 +32,7 @@ whole deploy takes about two minutes.
 ```bash
 cd /Users/dave/Dev/servio
 flutter test                       # 90-odd tests, all should pass
-flutter build web --release --dart-define=LOCATIONIQ_ACCESS_TOKEN=<token>
+flutter build web --release --dart-define-from-file=env.local.json
 firebase deploy --only hosting     # publishes build/web
 ```
 

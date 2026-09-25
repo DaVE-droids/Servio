@@ -69,21 +69,21 @@ A lecturer who hasn't been approved genuinely can't see anything. This is enforc
 
 ## Running the app
 
-The address search needs your LocationIQ token. It is passed in when you run the app and never stored in the code.
+The address search needs your LocationIQ token. It lives in `env.local.json` (which is never committed to git), and every command below reads it from there. If that file is missing, copy `env.example.json` to `env.local.json` and paste your token in.
 
 **On a phone or simulator (iOS or Android):**
 ```
-flutter run --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token
+flutter run --dart-define-from-file=env.local.json
 ```
 
 **In a browser (for coordinators on a laptop):**
 ```
-flutter run -d chrome --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token
+flutter run -d chrome --dart-define-from-file=env.local.json
 ```
 
 **Publishing the website:**
 ```
-flutter build web --release --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token
+flutter build web --release --dart-define-from-file=env.local.json
 firebase deploy --only hosting
 ```
 This puts the site at `https://servio-e2974.web.app`, free on your current plan. Step-by-step (including how to preview it privately first, and how to roll back): `DEPLOYMENT.md`. Publishing to the App Store and Google Play: `STORE_RELEASE.md`.

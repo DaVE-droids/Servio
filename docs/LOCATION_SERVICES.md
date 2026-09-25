@@ -69,16 +69,16 @@ const _locationIqAccessToken = String.fromEnvironment('LOCATIONIQ_ACCESS_TOKEN')
 `String.fromEnvironment` is a Dart compile-time constant that's empty unless supplied at build/run time — the token is **never** hardcoded into any file, so it can't accidentally get committed to git. To run the app with it:
 
 ```bash
-flutter run --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token_here
+flutter run --dart-define-from-file=env.local.json
 ```
 
 or for a release build:
 
 ```bash
-flutter build ios --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token_here
+flutter build ios --dart-define-from-file=env.local.json
 ```
 
-If you ever need a new token (the current one was pasted into an AI chat session, which is low-risk for a free-tier dev key on an unreleased app, but you can regenerate it anytime from your LocationIQ dashboard for a clean slate), just swap the value passed to `--dart-define` — no code changes needed.
+If you ever need a new token, regenerate it in the LocationIQ dashboard and paste the new value into `env.local.json` — no code changes needed. Worth doing once before launch: the original token was pasted into a chat session, which is low-risk for a free-tier key on an unreleased app, but a fresh token that has only ever lived in that gitignored file is a cleaner starting point. Whatever the token, restrict it to the site's domains in the dashboard: it is readable inside any browser build, so the restriction is the real protection.
 
 ### The actual implementation
 
@@ -142,7 +142,7 @@ This is the single most important thing to understand about this whole feature: 
 The pattern here is the same one from `docs/GEOCODING.md` §5, applied twice more:
 1. Add one method to the relevant `XyzService` class (`searchAddress`, `launchNavigation`) — never let the UI import the underlying package/API directly.
 2. Return `Result<SomeAppType>` (or in `launchNavigation`'s case, just a plain `bool`/`Future<void>`, since there's nothing meaningful to fail into a `Result` for a fire-and-forget OS handoff).
-3. Keep secrets (API keys/tokens) out of source entirely — `String.fromEnvironment` + `--dart-define`, never a hardcoded string.
+3. Keep secrets (API keys/tokens) out of source entirely — `String.fromEnvironment` + `--dart-define-from-file=env.local.json`, never a hardcoded string.
 4. Build reusable UI (`AddressSearchField`) as its own widget in `lib/core/widgets/`, not copy-pasted into each screen that needs it.
 
 ## 7. Switching to Google's paid services later
@@ -162,7 +162,7 @@ If you eventually fund a Google Cloud billing account, two independent upgrades 
 
 ## 9. Testing this yourself
 
-1. Run the app with your LocationIQ token: `flutter run --dart-define=LOCATIONIQ_ACCESS_TOKEN=your_token`.
+1. Run the app with your LocationIQ token in `env.local.json`: `flutter run --dart-define-from-file=env.local.json`.
 2. As a student, start a placement submission. Confirm the Country dropdown defaults to Nigeria and the State dropdown populates once a country is picked.
 3. Type a few characters of a real company address into Company Address — after a brief pause, a list of suggestions should appear. Pick one and confirm it fills the field.
 4. Try submitting without picking a suggestion (just typing and leaving it) — you should get "Please select an address from the suggestions," not a silent bad submission.
