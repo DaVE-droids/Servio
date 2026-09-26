@@ -1,4 +1,3 @@
-import 'package:country_state_city/country_state_city.dart' as csc;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,7 @@ import '../../../../app/constants/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../core/services/maps_service.dart';
+import '../../../../core/services/place_directory.dart';
 import '../../../../core/widgets/address_search_field.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/utils/formatters.dart';
@@ -44,13 +44,13 @@ class _StudentInternshipScreenState
   DateTime? _endDate;
   bool _isReviewing = false;
 
-  List<csc.Country> _countries = [];
+  List<GeoCountry> _countries = [];
   bool _countriesLoading = true;
-  csc.Country? _selectedCountry;
+  GeoCountry? _selectedCountry;
 
-  List<csc.State> _states = [];
+  List<String> _states = [];
   bool _statesLoading = false;
-  csc.State? _selectedState;
+  String? _selectedState;
 
   AddressSuggestion? _selectedAddress;
 
@@ -70,11 +70,11 @@ class _StudentInternshipScreenState
   }
 
   Future<void> _loadCountries() async {
-    final countries = await csc.getAllCountries();
+    final countries = await PlaceDirectory.countries();
     if (!mounted) {
       return;
     }
-    csc.Country? nigeria;
+    GeoCountry? nigeria;
     for (final country in countries) {
       if (country.isoCode == 'NG') {
         nigeria = country;
@@ -97,7 +97,7 @@ class _StudentInternshipScreenState
       _states = [];
       _selectedState = null;
     });
-    final states = await csc.getStatesOfCountry(countryIsoCode);
+    final states = await PlaceDirectory.statesOf(countryIsoCode);
     if (!mounted) {
       return;
     }
@@ -182,7 +182,7 @@ class _StudentInternshipScreenState
                 errorText: _errors['companyName'],
               ),
               const SizedBox(height: AppSpacing.sm),
-              DropdownButtonFormField<csc.Country>(
+              DropdownButtonFormField<GeoCountry>(
                 initialValue: _selectedCountry,
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -213,7 +213,7 @@ class _StudentInternshipScreenState
                       },
               ),
               const SizedBox(height: AppSpacing.sm),
-              DropdownButtonFormField<csc.State>(
+              DropdownButtonFormField<String>(
                 initialValue: _selectedState,
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -225,10 +225,7 @@ class _StudentInternshipScreenState
                     .map(
                       (state) => DropdownMenuItem(
                         value: state,
-                        child: Text(
-                          state.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        child: Text(state, overflow: TextOverflow.ellipsis),
                       ),
                     )
                     .toList(),
@@ -334,7 +331,7 @@ class _StudentInternshipScreenState
               InfoRow(
                 'Location',
                 [
-                  _selectedState?.name ?? '',
+                  _selectedState ?? '',
                   _selectedCountry?.name ?? '',
                 ].where((part) => part.isNotEmpty).join(', '),
                 icon: Icons.map_outlined,
@@ -413,7 +410,7 @@ class _StudentInternshipScreenState
             companySupervisorName: _supervisorNameController.text,
             companySupervisorPhone: _supervisorPhoneController.text,
             country: _selectedCountry!.name,
-            state: _selectedState!.name,
+            state: _selectedState!,
             startDate: _startDate!,
             endDate: _endDate!,
           ),
