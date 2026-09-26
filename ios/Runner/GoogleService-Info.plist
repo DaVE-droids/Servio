@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.servio</string>
+	<string>com.davedroids.servio</string>
 	<key>PROJECT_ID</key>
 	<string>servio-e2974</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:117526059669:ios:4e93d57797d6465df3199c</string>
+	<string>1:117526059669:ios:8ea58e937098bbc7f3199c</string>
 </dict>
 </plist>

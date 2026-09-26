@@ -1,4 +1,4 @@
-package com.example.servio
+package com.davedroids.servio
 
 import io.flutter.embedding.android.FlutterActivity
 

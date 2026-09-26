@@ -57,18 +57,17 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCjTklGFnioADL_r_vj2dI_N7Nm8--L93A',
-    appId: '1:117526059669:android:85a767d089e9081ff3199c',
+    appId: '1:117526059669:android:07fb76363f020a11f3199c',
     messagingSenderId: '117526059669',
     projectId: 'servio-e2974',
     storageBucket: 'servio-e2974.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyA-UopV4RWvGyR33nXSqUZKV8C67L1xJKQ',
-    appId: '1:117526059669:ios:4e93d57797d6465df3199c',
+    appId: '1:117526059669:ios:8ea58e937098bbc7f3199c',
     messagingSenderId: '117526059669',
     projectId: 'servio-e2974',
     storageBucket: 'servio-e2974.firebasestorage.app',
-    iosBundleId: 'com.example.servio',
+    iosBundleId: 'com.davedroids.servio',
   );
 }

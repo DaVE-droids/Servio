@@ -22,7 +22,7 @@ val keystoreProperties = Properties().apply {
 val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
 
 android {
-    namespace = "com.example.servio"
+    namespace = "com.davedroids.servio"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -35,7 +35,7 @@ android {
         // Must change before the first Play Store upload and can never change
         // after it; changing it also means registering the new ID in Firebase.
         // See docs/STORE_RELEASE.md ("Choose the app's permanent ID").
-        applicationId = "com.example.servio"
+        applicationId = "com.davedroids.servio"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
