@@ -497,3 +497,21 @@ timezones, coordinates) are dropped.
 **Tests:** 110 passing. Added tests that load the real asset files —
 countries sorted and complete, Nigeria's states present, and a country
 with no states returning an empty list rather than throwing.
+
+## 2026-09-26
+
+**Changed (app code):** tapping a top-bar destination repeatedly no longer stacks copies of it.
+
+Reported by the owner: tapping the notifications bell four times meant pressing Back four times to get back to the screen they started on.
+
+The bell, the account menu's "Profile & settings", and the coordinator's audit history all sit in the top bar of *every* screen — including the screens they themselves open. Each used `context.push`, which stacks a new page every time regardless of what is already on screen, so tapping the bell while already looking at notifications pushed a second identical page on top of the first.
+
+All three now go through `context.pushUnlessCurrent` (`lib/app/router/app_navigation.dart`), which skips the push when the page asked for is already the one being shown. It returns the push's future so the bell can still refresh its unread badge when the user comes back.
+
+**Verified in the built app**, not just in tests: signed in as a coordinator, tapped the bell four times, and needed exactly one Back press to return to the dashboard (measured by the Back button, which the shell only shows on a pushed page).
+
+**Tests:** 113 passing. Added navigation tests covering four taps producing one page, one Back returning to the previous screen, and the page still opening normally from elsewhere.
+
+**The address bar now follows these pages too.** Opening notifications, the profile, or a student's detail page left the address bar on the page underneath, so the browser's own Back button did nothing and the address couldn't be copied or reloaded. `GoRouter.optionURLReflectsImperativeAPIs` (set in `main.dart`) makes the URL follow them. go_router advises against this because a pushed page's URL isn't always reloadable — that caveat doesn't apply here, because the earlier work removed the routes that depended on in-memory arguments, so every page Servio pushes carries its own identity in the URL.
+
+Checked in the built app: opening notifications moves the address to `/notifications`, further bell taps leave it there, one press of the browser's Back button returns to `/coordinator/dashboard`, and loading `/notifications` cold still works.

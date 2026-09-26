@@ -9,6 +9,7 @@ import '../../features/authentication/presentation/providers/authentication_prov
 import '../../features/notifications/presentation/widgets/notifications_bell_button.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../constants/app_routes.dart';
+import '../router/app_navigation.dart';
 import '../router/auth_redirects.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
@@ -184,7 +185,7 @@ class AppShell extends ConsumerWidget {
       if (role == UserRole.coordinator && currentPath != AppRoutes.audit)
         IconButton(
           tooltip: 'Audit history',
-          onPressed: () => context.push(AppRoutes.audit),
+          onPressed: () => context.pushUnlessCurrent(AppRoutes.audit),
           icon: const Icon(Icons.history_rounded),
         ),
       ...actions,
@@ -495,7 +496,7 @@ class _AccountButton extends ConsumerWidget {
       position: PopupMenuPosition.under,
       offset: Offset(0, compact ? 4 : -8),
       onSelected: (action) => switch (action) {
-        _AccountAction.profile => context.push(AppRoutes.profile),
+        _AccountAction.profile => context.pushUnlessCurrent(AppRoutes.profile),
         _AccountAction.signOut =>
           ref.read(authenticationControllerProvider.notifier).logout(),
       },

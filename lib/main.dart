@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 
 import 'app/app.dart';
 import 'app/theme/app_colors.dart';
@@ -19,6 +20,15 @@ void main() async {
   // rewrite in firebase.json serves the app for every path. No effect on
   // mobile.
   usePathUrlStrategy();
+
+  // Make the address bar follow pages opened on top of another (the bell,
+  // the account menu, a student's detail page), so the browser's own Back
+  // button closes them and the address can be copied or reloaded.
+  // go_router warns against this because a pushed page's URL isn't always
+  // reloadable — but every page Servio pushes carries its own identity in
+  // the URL (/notifications, /coordinator/students/<id>), so each one
+  // stands on its own.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
 
   _installErrorHandlers();
 

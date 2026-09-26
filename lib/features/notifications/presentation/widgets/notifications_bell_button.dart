@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../app/constants/app_routes.dart';
+import '../../../../app/router/app_navigation.dart';
 import '../providers/notification_providers.dart';
 
 /// App bar bell that opens the notifications list, with a badge showing how
@@ -24,7 +24,7 @@ class NotificationsBellButton extends ConsumerWidget {
     return IconButton(
       tooltip: 'Notifications',
       onPressed: () async {
-        await context.push(AppRoutes.notifications);
+        await context.pushUnlessCurrent(AppRoutes.notifications);
         // Coming back, re-read so the badge reflects anything marked read.
         ref.invalidate(notificationsControllerProvider);
       },
