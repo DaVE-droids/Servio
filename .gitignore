@@ -63,3 +63,6 @@ firestore-debug.log
 env.local.json
 .env
 .env.local
+
+# Firebase CLI local cache (hosting deploy hashes)
+.firebase/
