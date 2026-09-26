@@ -1,5 +1,4 @@
 import '../../../../core/result/result.dart';
-import '../../../profile/data/models/user_model.dart';
 import '../../data/models/auth_requests.dart';
 import '../../data/repositories/authentication_repository.dart';
 
@@ -11,6 +10,6 @@ class LoginUseCase {
   final AuthenticationRepository _repository;
 
   /// Executes the login workflow.
-  Future<Result<UserModel>> call(LoginRequest request) =>
+  Future<Result<void>> call(LoginRequest request) =>
       _repository.login(request);
 }

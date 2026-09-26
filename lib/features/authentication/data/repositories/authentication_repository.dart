@@ -134,7 +134,20 @@ class AuthenticationRepository {
   }
 
   /// Logs in an existing email/password account.
-  Future<Result<UserModel>> login(LoginRequest request) async {
+  ///
+  /// Once Firebase accepts the password, the sign-in has succeeded and this
+  /// reports success. The profile is read only to catch the one case that
+  /// would otherwise strand someone — an account with no profile document,
+  /// which leaves the router with no dashboard to send them to.
+  ///
+  /// A profile read that fails for any other reason (the first read on a
+  /// freshly opened connection, a dropped packet) is deliberately *not*
+  /// treated as a failed sign-in: it used to show "Unable to load your
+  /// account data" while the session stream carried on and signed the user
+  /// in anyway, so people saw an error on a login that had worked. The
+  /// session stream and every screen load what they need with their own
+  /// retries and their own error states.
+  Future<Result<void>> login(LoginRequest request) async {
     try {
       final credential = await _authenticationService.login(
         email: request.email.trim(),
@@ -147,8 +160,15 @@ class AuthenticationRepository {
         );
       }
 
-      final userResult = await _loadUser(firebaseUser.uid);
-      return userResult;
+      final profile = await _loadUser(firebaseUser.uid);
+      if (profile case Failure<UserModel>(:final error)
+          when error.type == FailureType.authorization) {
+        // There is no profile for this account: signing out again avoids
+        // leaving them signed in with nowhere to go.
+        await _authenticationService.logout();
+        return Failure(error);
+      }
+      return const Success(null);
     } on FirebaseAuthException catch (error) {
       return Failure(_mapAuthException(error));
     } catch (error) {
@@ -343,7 +363,7 @@ class AuthenticationRepository {
   /// router needs both: role picks the dashboard, and `isActive` holds a
   /// not-yet-approved lecturer on the "awaiting approval" screen.
   Future<({UserRole? role, bool isActive})> _loadAccess(String uid) async {
-    final data = (await _firestore.collection('users').doc(uid).get()).data();
+    final data = (await _readProfileWithRetry(uid)).data();
     final roleValue = data?['role'] as String?;
     UserRole? role;
     for (final candidate in UserRole.values) {
@@ -355,6 +375,27 @@ class AuthenticationRepository {
     // it as active rather than locking that user out.
     final isActive = data?['isActive'] as bool? ?? true;
     return (role: role, isActive: isActive);
+  }
+
+  /// Reads `users/{uid}` for the session stream, retrying briefly.
+  ///
+  /// This read decides which dashboard someone sees, and it runs the moment
+  /// they sign in — when the connection is often still warming up. Without
+  /// the retries a single blip threw out of the session stream and left the
+  /// app sitting on the splash screen.
+  Future<DocumentSnapshot<Map<String, dynamic>>> _readProfileWithRetry(
+    String uid,
+  ) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _firestore.collection('users').doc(uid).get();
+      } on FirebaseException {
+        if (attempt >= 2) {
+          rethrow;
+        }
+        await Future<void>.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+      }
+    }
   }
 
   AppFailure _mapAuthException(FirebaseAuthException error) {
