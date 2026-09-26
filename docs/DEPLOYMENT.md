@@ -114,6 +114,52 @@ alert first. Then:
    needs; see the roadmap's Phase 6.
 4. Rebuild and deploy.
 
+## Sharing test builds on Android
+
+No store account needed. Builds are signed with the upload key described in
+`docs/STORE_RELEASE.md` (`android/key.properties`, gitignored) — the same
+key Google Play will use later, so testers can update in place rather than
+uninstalling first.
+
+Build an APK that covers every real phone. `x86_64` is left out on purpose:
+only emulators use it, and including it adds ~20 MB.
+
+```bash
+flutter build apk --release \
+  --target-platform android-arm,android-arm64 \
+  --dart-define-from-file=env.local.json
+```
+
+That writes `build/app/outputs/flutter-apk/app-release.apk` (~37 MB).
+
+Send it straight to people (WhatsApp, Drive) and tell them Android will warn
+about "unknown apps" — that warning appears for anything not from the Play
+Store. Or use **Firebase App Distribution**, which emails testers an invite
+and notifies them automatically whenever a new build lands:
+
+```bash
+firebase appdistribution:distribute \
+  build/app/outputs/flutter-apk/app-release.apk \
+  --app 1:117526059669:android:07fb76363f020a11f3199c \
+  --groups testers \
+  --release-notes "What changed in this build"
+```
+
+Manage who receives builds:
+
+```bash
+firebase appdistribution:testers:add someone@example.com
+firebase appdistribution:testers:list
+```
+
+Without `--groups` or `--testers` the build uploads but is sent to nobody,
+which is a safe way to check an upload before anyone is notified.
+
+**iPhone testers can't be served this way** — Apple only allows installs
+through TestFlight or the App Store, both of which need the paid developer
+account. Send them the website instead; it works well in mobile Safari and
+can be added to the home screen.
+
 ## A custom domain
 
 Firebase console → Hosting → Add custom domain, then add the DNS records it

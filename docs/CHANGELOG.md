@@ -515,3 +515,26 @@ All three now go through `context.pushUnlessCurrent` (`lib/app/router/app_naviga
 **The address bar now follows these pages too.** Opening notifications, the profile, or a student's detail page left the address bar on the page underneath, so the browser's own Back button did nothing and the address couldn't be copied or reloaded. `GoRouter.optionURLReflectsImperativeAPIs` (set in `main.dart`) makes the URL follow them. go_router advises against this because a pushed page's URL isn't always reloadable — that caveat doesn't apply here, because the earlier work removed the routes that depended on in-memory arguments, so every page Servio pushes carries its own identity in the URL.
 
 Checked in the built app: opening notifications moves the address to `/notifications`, further bell taps leave it there, one press of the browser's Back button returns to `/coordinator/dashboard`, and loading `/notifications` cold still works.
+
+### Android release signing, and tidying the Firebase apps
+
+Release builds now sign with a real upload key (`android/key.properties`,
+gitignored; `android/key.properties.example` shows the shape) rather than
+falling back to the debug key. This matters before any build is shared:
+Android refuses to update an installed app if a later build is signed with a
+different key, so a debug-signed build handed out now would have forced
+every tester to uninstall — losing whatever they had entered — once a real
+key appeared. It is also the key Google Play will be tied to later.
+
+Test builds go out as an APK covering both real phone architectures
+(`--target-platform android-arm,android-arm64`, ~37 MB). `x86_64` is
+excluded deliberately: only emulators use it and it added ~20 MB. Firebase
+App Distribution is wired up for sharing — see `docs/DEPLOYMENT.md`.
+
+Renaming the app ID left duplicate Firebase registrations: a package name is
+an app's permanent identity, so `flutterfire configure` had to create new
+`com.davedroids.servio` apps beside the old `com.example.servio` ones rather
+than renaming them. The stale pair was deleted from the console, and
+`google-services.json` was regenerated so the local config no longer lists a
+registration that no longer exists. Verified by rebuilding and confirming
+the APK is signed with the DAVE-droids certificate.
