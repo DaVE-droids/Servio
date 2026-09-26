@@ -1,0 +1,14 @@
+# Copy this file to android/key.properties and fill in your own values.
+# key.properties is gitignored and must never be committed.
+#
+# Create the keystore first (it will prompt for a password and your name):
+#   keytool -genkey -v -keystore ~/servio-upload-key.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Back up the .jks file and its password somewhere safe. Android refuses to
+# update an installed app if a later build is signed with a different key,
+# and Google Play ties your listing to it too.
+storePassword=your-keystore-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=/Users/dave/servio-upload-key.jks
