@@ -123,6 +123,68 @@ Every item in PRD §18's MVP scope is built **except push notifications**, which
 ### Phase 9 — Settings & polish
 Lowest priority: ~~`lib/features/settings/`~~ (stub removed in Phase 8 — nothing linked to it and it isn't in PRD MVP scope; rebuild if a real need appears), plus cross-cutting polish — Crashlytics/error monitoring (SRS NFR-REL-003/NFR-LOG-001, not yet integrated), dark mode theme (DSS §4 says build with theme support in mind — confirm no hardcoded colors have crept into any feature screens), and closing test-coverage gaps for every feature built in Phases 0–8.
 
+## Waiting on a budget decision (as of 2026-09-26)
+
+Four things are blocked on spending rather than on engineering. Three of
+them unblock together the moment billing is enabled, so it's worth doing
+them in one session rather than three.
+
+| | Cost | Unblocks |
+|---|---|---|
+| **Blaze plan** (pay-as-you-go) | ₦0 in practice at pilot scale — Cloud Functions' 2M monthly calls are free | Email notifications, push notifications, profile photo uploads |
+| **A domain** (e.g. `servio.ng`) | ~$10/year | Email deliverability, a real address instead of `servio-e2974.web.app` |
+| **Google Play** | $25 once | Public Android distribution (APK sharing works meanwhile) |
+| **Apple Developer** | $99/year | iOS at all — no sideloading, so iPhone users are on the website until then |
+
+Set a budget alert before enabling Blaze. Blaze charges only *beyond* the
+same free quotas Spark has; the risk isn't normal use, it's a runaway loop.
+
+### Phase 10 — Email notifications (blocked on Blaze)
+
+Firebase sends email only for its own auth flows (verification, password
+reset). Custom email needs somewhere server-side to send from, which means
+Cloud Functions, which means Blaze. Sending from the app itself is not an
+option: the credentials would ship inside the app for anyone to extract.
+
+**The design fits what's already built.** All nine events already write a
+`notifications` document (`NotificationFactory`). So the whole feature is a
+Cloud Function triggered on the creation of one of those documents: look up
+the recipient's email, send it. No client changes, no second write path, and
+the same trigger later carries push notifications.
+
+**Which events should email.** Not all nine. `logbookApproved` and
+`logbookChangesRequested` fire every working day for every active student —
+daily email people will mute or mark as spam, and most of the quota. Email
+the milestones only:
+
+- Placement approved / rejected
+- Lecturer assigned (to the student and to the lecturer)
+- Supervision visit recorded
+- Internship completed
+- Lecturer account approved
+
+That is roughly six emails per student per placement cycle. The daily
+logbook events stay in-app, and could become a weekly digest if anyone asks.
+
+**Provider.** Brevo's free tier is the most generous (300/day, ~9,000/month);
+Resend gives 3,000/month and is the pleasanter API. SendGrid ended its free
+plan in 2025 — ignore older tutorials recommending it. Do **not** build on
+Firebase's "Trigger Email" extension: Firebase Extensions shut down on
+31 March 2027.
+
+**Deliverability needs the domain.** Without one, mail goes out from the
+provider's shared sending domain and a good share lands in spam, which is
+worse than sending nothing — people stop trusting it. With a domain, two DNS
+records (SPF and DKIM) make placement reliable.
+
+**Also in scope:** a per-user notification preference so people can opt out,
+which most jurisdictions require for non-transactional mail and is decent
+practice regardless.
+
+**Estimated work:** about half a day — a `functions/` folder with one
+trigger, the recipient lookup, a branded HTML template, the event filter
+above, and the opt-out flag.
+
 ## Firebase plan constraints
 
 The Firebase project was recently downgraded back to the **Spark (free) plan** after the linked billing balance was removed. This is not a reason to migrate off Firebase, and the roadmap above assumes staying on Spark:

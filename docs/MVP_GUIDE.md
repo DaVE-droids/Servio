@@ -127,6 +127,7 @@ Use a laptop browser for the coordinator and a phone or simulator for everyone e
 
 | Missing | Why |
 |---|---|
+| **Email notifications** (an email when a placement is approved, a lecturer is assigned, and so on) | Firebase only sends email for sign-up verification and password resets. Anything else needs a small server program (Cloud Functions, the paid **Blaze** plan) plus a free email service, and a domain so the mail doesn't land in spam. Planned — see the roadmap. |
 | **Push notifications** (alerts when the app is closed) | Sending them needs a small server program (Cloud Functions), which needs Firebase's paid **Blaze** plan. Blaze only charges beyond the same free allowance you have now, but it needs a billing account. Everything is already in place for it; in-app notifications with the unread badge cover the same events meanwhile. |
 | Photos on visit reports | Marked "should have" in the requirements, not "must have". Needs a storage location adding. |
 | **Profile photos** | Firebase now requires the paid Blaze plan for file storage, and every upload is refused on the free plan. The button is hidden until you upgrade; everyone gets their initials in a coloured tile meanwhile. |
