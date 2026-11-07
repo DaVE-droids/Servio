@@ -538,3 +538,126 @@ than renaming them. The stale pair was deleted from the console, and
 `google-services.json` was regenerated so the local config no longer lists a
 registration that no longer exists. Verified by rebuilding and confirming
 the APK is signed with the DAVE-droids certificate.
+
+---
+
+## 2026-11-06
+
+**Changed (docs only):** Added Phase 11 to the roadmap — a public visibility
+push, with the hosting quota named as its blocker.
+**Why:** The project needs to be seen to be pitched, and store publishing is
+on hold for money reasons, so visibility has to come from a web demo and a
+technical write-up instead. The entry exists mainly to record two things
+that were nearly got wrong: Spark's 360 MB/day transfer serves roughly 200
+new visitors, so any successful post would take the site down mid-launch and
+has to be solved first; and the stack story must describe what Servio
+actually is — three-role access control enforced entirely in declarative
+Firestore rules with no server — not the Node/Express backend an AI
+assistant had suggested claiming, which does not exist in this repo.
+**Follow-up:** Nothing built yet. Revisit when the quota decision is made.
+
+**Changed (app code + backend/db):** Attendance check-ins now record where
+the phone was, so lecturers and coordinators can see which claimed workdays
+are backed by a location.
+- `lib/core/services/location_service.dart` (new): a thin wrapper over
+  `geolocator` (added to `pubspec.yaml`) that returns coordinates, the
+  reading's accuracy, and Android's mocked-location flag — and returns an
+  empty reading rather than throwing when location is off, permission is
+  refused, or the fix times out.
+- `lib/features/attendance/domain/location_check.dart` (new): the pure
+  decision. Turns distance, accuracy, and the mocked flag into one of three
+  verdicts — at the workplace, away from it, not confirmed — plus a reason
+  when it cannot be judged.
+- `AttendanceModel` gained `checkInAccuracyMetres`, `checkInDistanceMetres`,
+  and `checkInLocationMocked`; the long-empty `checkInLatitude`/`Longitude`
+  fields are now filled.
+- `AttendanceCheckInRequest` carries the internship's company coordinates,
+  which the controller already had loaded, so the repository can measure the
+  distance without reading another collection (ARS: repositories don't call
+  one another).
+- `firestore.rules`: the three new fields were added to
+  `attendanceFields()`, and `isValidAttendanceLocation()` type-checks them
+  and refuses a claimed distance with no coordinates behind it.
+- UI: a tappable chip on the student's today card and on every row of the
+  lecturer attendance list, plus a count at the top of that list when any
+  check-in was recorded away from the workplace.
+- Permissions: `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION` (Android),
+  `NSLocationWhenInUseUsageDescription` (iOS), and `firebase.json`'s
+  `Permissions-Policy` changed from `geolocation=()` to `geolocation=(self)`
+  — the old value blocked the browser API outright, so web check-ins would
+  have recorded nothing with no visible error.
+
+**Why these specific choices:**
+- **A failed reading never fails the check-in.** GPS is unreliable indoors
+  and a student with a refused permission or a broken sensor would otherwise
+  lose their attendance record. Off-site check-ins are flagged for a
+  lecturer to ask about, not blocked.
+- **Accuracy is added to the geofence allowance.** A phone that only knows
+  its position to within 80 m must not place a student outside a 250 m
+  fence on its own; readings vaguer than
+  `AppConstants.attendanceMaxLocationAccuracyMetres` are discarded instead
+  of being used as evidence.
+- **The verdict is derived, not stored.** Thresholds can be retuned without
+  rewriting records, and every record created before today simply reads as
+  "not confirmed" rather than as absent.
+- **Honest limits, recorded on purpose.** The distance is computed on the
+  device, so the rules can only check its shape: there is no trigonometry in
+  the rules language and no server to recompute it. A mock-location app or a
+  direct Firestore call can still write a false position. The mocked flag
+  catches the careless case; real verification needs the employer sign-off
+  planned in the roadmap.
+**Follow-up:** `firestore.rules` **must be deployed** (`firebase deploy
+--only firestore:rules`) before a client writes the new fields — the
+existing `hasOnly(attendanceFields())` check rejects any create containing
+them until then. Not yet deployed. Tested with 7 new unit tests in
+`test/location_check_test.dart`; suite is 120 passing. Not yet tested on a
+real device.
+
+## 2026-11-07
+
+**Changed (docs only):** Added `docs/ATTENDANCE_VERIFICATION.md` and
+`docs/APP_UPDATES.md`.
+**Why:** Both areas are new ground for the project owner, who asked to be
+able to review them later and explain them to someone else, so each is
+written to be read cold rather than as a reference for whoever wrote the
+code. `ATTENDANCE_VERIFICATION.md` documents the location check built
+yesterday: the three verdicts, the two tunable thresholds, why the verdict
+is derived rather than stored, and — stated plainly rather than buried —
+that phone location is self-reported and this is a deterrent, not proof.
+`APP_UPDATES.md` is a **design for review, not a record of built work**: an
+in-app update prompt for sideloaded Android builds, so testers stop being
+chased over WhatsApp. It records three things that are easy to get wrong:
+the APK must not be served from Firebase Hosting (37 MB against a 360 MB
+daily allowance is nine downloads before the website goes down with it),
+the comparison must use the integer build number rather than the version
+name, and an update only installs over an existing app when the application
+ID and signing key both match — which is why the earlier app-ID move and
+upload-key work matters here.
+**Follow-up:** No code written for the update feature yet, pending review of
+the design. `firestore.rules` from the 2026-11-06 attendance entry is still
+**not deployed**.
+
+**Changed (docs only):** Revised `docs/APP_UPDATES.md` after review — the
+update now downloads inside the app with a progress bar (new §9) rather
+than handing off to the browser.
+**Why:** Requested, because watching a browser download feels like being
+dumped out of the app mid-task and is easy to forget about. The new section
+records what that costs: the APK goes to the app's private storage (so no
+storage permission), a `FileProvider` is required because Android 7+ will
+not accept a raw file path from another app, and `REQUEST_INSTALL_PACKAGES`
+is needed to ask Android to install at all. The real catch is recorded
+plainly: **Google Play forbids an app distributed through Play from
+updating itself by any other means**, and that permission draws extra
+review scrutiny — so the whole feature sits behind one `AppConstants` flag,
+the same pattern `profilePhotoUploadsEnabled` already uses, and is off for
+Play builds.
+**Follow-up:** Still not built. Repo audited for secrets ahead of going
+public: `key.properties`, the keystore, `scripts/servio-account.json`, and
+`env.local.json` are all gitignored and absent from the full git history;
+the tracked `google-services.json`/`GoogleService-Info.plist` hold API keys
+that are public by design in every shipped client, so protection rests on
+`firestore.rules` — which become publicly readable, and have no automated
+tests.
+
+**Deployed:** `firestore.rules` (the attendance location fields from
+2026-11-06) were deployed to the live project by the owner.

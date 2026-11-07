@@ -185,6 +185,51 @@ practice regardless.
 trigger, the recipient lookup, a branded HTML template, the event filter
 above, and the opt-out flag.
 
+### Phase 11 — Public visibility push (not blocked on money)
+
+The goal is not users. Servio is pitched to an institution, not downloaded
+by individuals. The goal is a place where the work can be *seen* by people
+who can open doors: a credible demo, and a technical story told where
+engineers and the Nigerian tech press actually read.
+
+**The blocker to solve first — hosting quota.** Spark allows 360 MB/day of
+transfer and a first visit costs roughly 1.5 MB, so the site serves about
+**200 new visitors a day**. Any successful post (Hacker News front page,
+press coverage) is thousands of visitors in hours: the site would go down
+in the middle of the launch and stay down until the quota resets. Fix this
+before posting anywhere. Either a static landing page carrying a recorded
+walkthrough, so most visitors never download the Flutter bundle, or Blaze
+with a hard budget cap for launch week.
+
+**The demo.** A landing page with three buttons — view as student, lecturer,
+coordinator — each opening a seeded read-only account with realistic data,
+no signup. `scripts/seed_test_users.js` already does most of the seeding.
+Note that pre-minted Firebase ID tokens expire after an hour and custom
+claims need the Admin SDK (so Cloud Functions, so Blaze): on Spark this has
+to be ordinary demo accounts with known passwords, signed in for the
+visitor.
+
+**The technical story, told accurately.** Servio has no server: three-role
+access control is enforced entirely in ~790 lines of declarative Firestore
+rules, every list query provably scoped. That is a more unusual story than
+any Express middleware, and it is the true one — do not describe a Node
+backend, a stack this project does not have. Real war stories to draw on:
+the lecturer attendance query that stayed permission-denied until it was
+scoped by `lecturerId` with a matching composite index, and dropping a
+24 MB city list the placement form never read.
+
+**Where.** Show HN (title plain, no hyperbole; own first comment with the
+architecture and an invitation to criticise; stay engaged for hours),
+r/FlutterDev and r/edtech as a case study rather than a link drop, and an
+analytical op-ed pitched to TechCabal or Techpoint on why universities
+struggle to digitise placements, with Servio as the case study. The op-ed
+likely outranks the rest for the real objective, since university
+decision-makers in Nigeria read that press and do not read Hacker News.
+
+**Measured, not assumed:** a `--wasm` web build of this app is *larger*
+than the JavaScript one (1158 KB vs 1045 KB gzipped), so it is not a
+payload win here.
+
 ## Firebase plan constraints
 
 The Firebase project was recently downgraded back to the **Spark (free) plan** after the linked billing balance was removed. This is not a reason to migrate off Firebase, and the roadmap above assumes staying on Spark:
