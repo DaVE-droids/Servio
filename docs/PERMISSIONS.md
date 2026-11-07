@@ -11,13 +11,21 @@ asks "why does it want that?".
 | Platform | Permission | When it's asked | Why |
 |---|---|---|---|
 | Android | `INTERNET` | Never asked — granted at install | Firebase, address search, opening maps |
+| Android | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | Only when a student taps "Check in" on the attendance screen | Recording how far the check-in was from the company address |
+| iOS | Location in use (`NSLocationWhenInUseUsageDescription`) | Only when a student taps "Check in" | Same |
+| Web | Geolocation (browser prompt) | Only when a student taps "Check in" | Same |
 | iOS | Camera (`NSCameraUsageDescription`) | Only when someone taps "Take a photo" for their profile picture | Profile photo |
 | iOS | Photo library (`NSPhotoLibraryUsageDescription`) | Only when someone chooses an existing photo | Profile photo |
-| Web | None | — | The file picker needs no permission |
+| Web | Nothing else | — | The file picker needs no permission |
 
-That's the whole list. Servio asks for **no location, no contacts, no
-microphone, no background access, and no notification permission** (push
-notifications aren't built yet — see "If you add push notifications").
+That's the whole list. Servio asks for **no contacts, no microphone, no
+background access, and no notification permission** (push notifications
+aren't built yet — see "If you add push notifications").
+
+Location is **foreground only**: it is read at the moment a student taps
+check in, and never while the app is in the background or closed. A student
+who refuses it can still check in — the record is simply saved without a
+location and shows as "Location not confirmed".
 
 Profile photo uploads are currently switched off in
 `AppConstants.profilePhotoUploadsEnabled` because Cloud Storage needs the
@@ -31,10 +39,11 @@ Blaze plan, so in practice the camera and photo prompts don't appear yet.
 - **Android storage / photos (`READ_MEDIA_IMAGES`)**: choosing a photo uses
   Android's system photo picker, which returns only the file the user
   picked.
-- **Location**: the company's map position comes from the address the
-  student searches for, not from the device. (Check-in records a time, not
-  a place. The model has coordinate fields that were never filled — see
-  "If you add GPS check-in".)
+- **Background location** (`ACCESS_BACKGROUND_LOCATION`): Servio never
+  tracks where anyone is between check-ins. Google Play and Apple both
+  require a separate, heavily scrutinised justification for it, and
+  attendance does not need it.
+- **Android camera (`CAMERA`)** and **storage**: see above.
 
 ---
 
@@ -45,7 +54,7 @@ Blaze plan, so in practice the camera and photo prompts don't appear yet.
 | `android/app/src/main/AndroidManifest.xml` | `INTERNET`, the `<queries>` block (which other apps Servio may hand off to: web links, maps, the camera app), `allowBackup="false"` |
 | `ios/Runner/Info.plist` | The two usage descriptions (the exact sentences users see), plus `ITSAppUsesNonExemptEncryption` |
 | `ios/Runner/PrivacyInfo.xcprivacy` | Apple's privacy manifest: what Servio collects and that it doesn't track |
-| `firebase.json` → `Permissions-Policy` header | Turns camera, microphone, geolocation, payment, and USB **off** for the website |
+| `firebase.json` → `Permissions-Policy` header | Turns camera, microphone, payment, and USB **off** for the website, and allows geolocation for Servio's own pages only (`geolocation=(self)`) |
 
 The iOS sentences are what appear in the system prompt, word for word.
 Keep them specific ("only when you choose to take a new profile photo") —
@@ -101,11 +110,35 @@ five places. Stores flag permissions you declare but never use.
 - **Web**: the browser prompt must follow a tap, not a page load.
 - Update this file, the privacy policy, and the store data forms.
 
-## If you add GPS check-in
+## Location check-in (built)
 
-`AttendanceModel` has latitude/longitude fields that were never filled.
-Doing it properly means: the `geolocator` package;
-`NSLocationWhenInUseUsageDescription` on iOS; `ACCESS_FINE_LOCATION` and
-`ACCESS_COARSE_LOCATION` on Android; a screen explaining why before the OS
-prompt (SRS NFR-PRIV-003); and a fallback when someone declines — check-in
-must still work, or students can be locked out of their own attendance.
+A check-in stores the device's coordinates, the reading's margin of error,
+the distance to the company address, and whether Android reported the
+position as mocked. `LocationCheck` turns those into one of three verdicts
+— at the workplace, away from it, or not confirmed — shown to both the
+student and their lecturer.
+
+Things to keep in mind when changing it:
+
+- **Refusing is not failing.** `LocationService` returns an empty reading
+  instead of throwing when location is off, permission is denied, or the
+  fix times out. Check-in still succeeds. Never make the permission a
+  condition of attendance: a phone with a broken GPS would otherwise cost a
+  student their record.
+- **A vague reading is not evidence.** Anything less accurate than
+  `AppConstants.attendanceMaxLocationAccuracyMetres` is treated as no
+  reading at all rather than used to place someone outside the fence.
+- **The web needs the header.** `firebase.json` sets
+  `Permissions-Policy: geolocation=(self)`. Setting it back to
+  `geolocation=()` silently disables check-in locations on the website —
+  the browser blocks the API before Servio ever asks.
+- **Honest limits.** The distance is calculated on the device and sent up
+  with the record, so the security rules can only check its shape, not its
+  truth (rules have no trigonometry, and there is no server). A student who
+  installs a mock-location app or calls Firestore directly can write
+  whatever they like. The mocked flag catches the easy case; genuine
+  verification needs the employer sign-off in the roadmap.
+- **Privacy.** A single coordinate per workday, visible only to that
+  student, their assigned lecturer, and coordinators. If that scope ever
+  widens, `web/privacy.html` and `ios/Runner/PrivacyInfo.xcprivacy` must
+  say so.

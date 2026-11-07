@@ -28,4 +28,17 @@ abstract final class AppConstants {
   /// After upgrading to Blaze, set this to true and follow
   /// docs/DEPLOYMENT.md ("After enabling Blaze").
   static const profilePhotoUploadsEnabled = false;
+
+  /// How far from the company address still counts as being at work when a
+  /// student checks in.
+  ///
+  /// Generous on purpose: the address came from a geocoded search, so the
+  /// pin can sit on the wrong side of a large site, and a phone indoors is
+  /// often tens of metres out. The point is to tell "at the office" apart
+  /// from "at home", not to measure which floor someone is on.
+  static const attendanceGeofenceRadiusMetres = 250.0;
+
+  /// Readings vaguer than this are treated as no reading at all, rather
+  /// than being used to put a student inside or outside the fence.
+  static const attendanceMaxLocationAccuracyMetres = 200.0;
 }

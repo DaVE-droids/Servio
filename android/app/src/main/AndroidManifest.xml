@@ -4,6 +4,16 @@
          must declare it here. See docs/PERMISSIONS.md. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Attendance check-in records how far the phone is from the company
+         address, so a lecturer can see which claimed workdays are backed by
+         a location. COARSE is declared alongside FINE because Android 12+
+         lets the user grant only approximate location, and an approximate
+         fix is still useful here (the geofence is 250 m). Neither is
+         background location: Servio only asks while the student is on the
+         attendance screen tapping check in. See docs/PERMISSIONS.md. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <!-- No CAMERA or storage permissions: taking a profile photo hands off to
          the system camera app, and choosing one uses Android's photo picker,
          neither of which needs a permission. -->

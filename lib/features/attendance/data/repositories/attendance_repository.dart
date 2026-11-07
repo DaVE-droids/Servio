@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/enums/attendance_status.dart';
 import '../../../../core/errors/app_failure.dart';
 import '../../../../core/result/result.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../audit/domain/audit_event_factory.dart';
 import '../models/attendance_check_in_request.dart';
 import '../models/attendance_model.dart';
@@ -11,9 +12,10 @@ import '../services/attendance_service.dart';
 /// Repository for daily attendance operations.
 class AttendanceRepository {
   /// Creates an attendance repository.
-  const AttendanceRepository(this._service);
+  const AttendanceRepository(this._service, this._location);
 
   final AttendanceService _service;
+  final LocationService _location;
 
   /// Records a check-in for today, failing if already checked in or the
   /// student already has a record for today.
@@ -28,6 +30,19 @@ class AttendanceRepository {
         day: day,
       );
 
+      // Where the phone says it is, and how far that is from the company
+      // address. A failed reading is not a failed check-in: the record is
+      // simply saved without one and shows as unconfirmed.
+      final reading = await _location.current();
+      final distanceMetres = reading.hasPosition
+          ? _location.distanceBetween(
+              fromLatitude: reading.latitude!,
+              fromLongitude: reading.longitude!,
+              toLatitude: request.companyLatitude,
+              toLongitude: request.companyLongitude,
+            )
+          : null;
+
       final attendance = AttendanceModel(
         attendanceId: documentId,
         internshipId: request.internshipId,
@@ -40,6 +55,11 @@ class AttendanceRepository {
         state: request.state,
         date: day,
         checkInTime: now,
+        checkInLatitude: reading.latitude,
+        checkInLongitude: reading.longitude,
+        checkInAccuracyMetres: reading.accuracyMetres,
+        checkInDistanceMetres: distanceMetres,
+        checkInLocationMocked: reading.isMocked,
         status: AttendanceStatus.checkedIn,
         createdAt: now,
         updatedAt: now,

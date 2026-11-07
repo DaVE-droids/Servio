@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_tone.dart';
 import '../../../../core/enums/attendance_status.dart';
@@ -12,6 +13,8 @@ import '../../../../core/widgets/app_error_state.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_status_chip.dart';
 import '../../../attendance/data/models/attendance_model.dart';
+import '../../../attendance/domain/location_check.dart';
+import '../../../attendance/presentation/widgets/attendance_location_chip.dart';
 import '../providers/lecturer_attendance_provider.dart';
 
 /// Recent attendance across the lecturer's students, grouped by day.
@@ -52,12 +55,43 @@ class LecturerAttendanceScreen extends ConsumerWidget {
         }
         final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
         final today = Formatters.todayUtc();
+        // Counted rather than filtered: a lecturer should not have to open
+        // every day to notice that something is worth asking about.
+        final awayCount = records
+            .where((r) => r.locationCheck.verdict == LocationVerdict.offSite)
+            .length;
 
         return RefreshIndicator(
           onRefresh: () async => ref.invalidate(lecturerAttendanceProvider),
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              if (awayCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  child: AppCard(
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.wrong_location_outlined,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            awayCount == 1
+                                ? '1 check-in was recorded away from the '
+                                      'workplace.'
+                                : '$awayCount check-ins were recorded away '
+                                      'from the workplace.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               for (final day in days) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -113,12 +147,23 @@ class _AttendanceRow extends StatelessWidget {
     return ListTile(
       leading: AppAvatar(name: record.studentName, size: 40),
       title: Text(record.studentName),
-      subtitle: Text(
-        '${record.companyName} · ${Formatters.time(record.checkInTime)}'
-        '${record.checkOutTime == null ? '' : '–${Formatters.time(record.checkOutTime!)}'}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${record.companyName} · ${Formatters.time(record.checkInTime)}'
+            '${record.checkOutTime == null ? '' : '–${Formatters.time(record.checkOutTime!)}'}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AttendanceLocationChip(record: record),
+          ),
+        ],
       ),
+      isThreeLine: true,
       trailing: AppStatusChip(label: label, tone: tone),
     );
   }

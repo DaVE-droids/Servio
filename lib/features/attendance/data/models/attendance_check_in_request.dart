@@ -12,6 +12,8 @@ class AttendanceCheckInRequest {
     required this.lecturerName,
     required this.companyName,
     required this.state,
+    required this.companyLatitude,
+    required this.companyLongitude,
   });
 
   /// Internship this attendance record belongs to.
@@ -37,4 +39,11 @@ class AttendanceCheckInRequest {
 
   /// Internship state, from the internship.
   final String state;
+
+  /// Company latitude, from the internship — the centre of the geofence
+  /// the check-in reading is measured against.
+  final double companyLatitude;
+
+  /// Company longitude, from the internship.
+  final double companyLongitude;
 }

@@ -106,6 +106,8 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
             lecturerName: internship.lecturerName ?? internship.lecturerId!,
             companyName: internship.companyName,
             state: internship.state,
+            companyLatitude: internship.companyLatitude,
+            companyLongitude: internship.companyLongitude,
           ),
         );
 

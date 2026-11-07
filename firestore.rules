@@ -328,6 +328,9 @@ service cloud.firestore {
         'checkOutTime',
         'checkInLatitude',
         'checkInLongitude',
+        'checkInAccuracyMetres',
+        'checkInDistanceMetres',
+        'checkInLocationMocked',
         'checkOutLatitude',
         'checkOutLongitude',
         'status',
@@ -373,7 +376,38 @@ service cloud.firestore {
         && request.resource.data.date is timestamp
         && request.resource.data.checkInTime is timestamp
         && request.resource.data.createdAt is timestamp
-        && request.resource.data.updatedAt is timestamp;
+        && request.resource.data.updatedAt is timestamp
+        && isValidAttendanceLocation();
+    }
+
+    // The location fields are asserted by the client, so these rules check
+    // their shape, not their truth: nothing here can tell a real GPS fix
+    // from a spoofed one, and rules cannot recompute the distance (there
+    // is no trigonometry in the rules language). What they do enforce is
+    // that a distance is never claimed without the coordinates it was
+    // measured from, so a record is either internally consistent or
+    // visibly unverified. Real verification needs a server-side check or
+    // the employer sign-off in the roadmap.
+    function isValidAttendanceLocation() {
+      let data = request.resource.data;
+      return (!('checkInLatitude' in data) || data.checkInLatitude == null
+          || (data.checkInLatitude is number
+            && data.checkInLatitude >= -90 && data.checkInLatitude <= 90))
+        && (!('checkInLongitude' in data) || data.checkInLongitude == null
+          || (data.checkInLongitude is number
+            && data.checkInLongitude >= -180 && data.checkInLongitude <= 180))
+        && (!('checkInAccuracyMetres' in data)
+          || data.checkInAccuracyMetres == null
+          || (data.checkInAccuracyMetres is number
+            && data.checkInAccuracyMetres >= 0))
+        && (!('checkInDistanceMetres' in data)
+          || data.checkInDistanceMetres == null
+          || (data.checkInDistanceMetres is number
+            && data.checkInDistanceMetres >= 0
+            && data.checkInLatitude != null
+            && data.checkInLongitude != null))
+        && (!('checkInLocationMocked' in data)
+          || data.checkInLocationMocked is bool);
     }
 
     function isValidAttendanceCheckOut() {

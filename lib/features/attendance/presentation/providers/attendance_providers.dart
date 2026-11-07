@@ -4,6 +4,7 @@ import '../../../../core/result/result.dart';
 
 import '../../../../core/enums/user_role.dart';
 import '../../../../core/providers/firebase_providers.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../authentication/presentation/providers/authentication_providers.dart';
 import '../../data/repositories/attendance_repository.dart';
 import '../../data/services/attendance_service.dart';
@@ -21,7 +22,10 @@ final attendanceServiceProvider = Provider<AttendanceService>((ref) {
 
 /// Provides the attendance repository.
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
-  return AttendanceRepository(ref.watch(attendanceServiceProvider));
+  return AttendanceRepository(
+    ref.watch(attendanceServiceProvider),
+    const LocationService(),
+  );
 });
 
 /// Provides the check-in use case.

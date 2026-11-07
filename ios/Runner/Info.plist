@@ -28,6 +28,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Servio checks your location when you tap check in, so your attendance record shows that you were at your placement. It is never read in the background.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Servio uses the camera only when you choose to take a new profile photo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

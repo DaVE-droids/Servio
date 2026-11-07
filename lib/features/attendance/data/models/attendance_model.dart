@@ -23,6 +23,9 @@ class AttendanceModel {
     this.checkOutTime,
     this.checkInLatitude,
     this.checkInLongitude,
+    this.checkInAccuracyMetres,
+    this.checkInDistanceMetres,
+    this.checkInLocationMocked = false,
     this.checkOutLatitude,
     this.checkOutLongitude,
   });
@@ -63,12 +66,25 @@ class AttendanceModel {
   /// Check-out timestamp, if checked out.
   final DateTime? checkOutTime;
 
-  /// Check-in latitude. Not currently captured — no location picker/GPS
-  /// permission flow exists yet; see docs/CHANGELOG.md.
+  /// Check-in latitude, when the device could be located.
   final double? checkInLatitude;
 
-  /// Check-in longitude. Not currently captured.
+  /// Check-in longitude, when the device could be located.
   final double? checkInLongitude;
+
+  /// The check-in reading's margin of error in metres, as the platform
+  /// reported it. Kept so a vague reading is not mistaken for proof.
+  final double? checkInAccuracyMetres;
+
+  /// Metres between the check-in reading and the company address.
+  ///
+  /// Stored rather than recomputed so the record still means something if
+  /// the placement's address is ever corrected.
+  final double? checkInDistanceMetres;
+
+  /// Whether the device said the check-in position came from a mock
+  /// location provider. Android only.
+  final bool checkInLocationMocked;
 
   /// Check-out latitude. Not currently captured.
   final double? checkOutLatitude;
@@ -102,6 +118,11 @@ class AttendanceModel {
       checkOutTime: _readNullableDateTime(json['checkOutTime']),
       checkInLatitude: (json['checkInLatitude'] as num?)?.toDouble(),
       checkInLongitude: (json['checkInLongitude'] as num?)?.toDouble(),
+      checkInAccuracyMetres: (json['checkInAccuracyMetres'] as num?)
+          ?.toDouble(),
+      checkInDistanceMetres: (json['checkInDistanceMetres'] as num?)
+          ?.toDouble(),
+      checkInLocationMocked: json['checkInLocationMocked'] as bool? ?? false,
       checkOutLatitude: (json['checkOutLatitude'] as num?)?.toDouble(),
       checkOutLongitude: (json['checkOutLongitude'] as num?)?.toDouble(),
       status: AttendanceStatusSerialization.fromFirestore(
@@ -129,6 +150,9 @@ class AttendanceModel {
       'checkOutTime': _writeNullableDateTime(checkOutTime),
       'checkInLatitude': checkInLatitude,
       'checkInLongitude': checkInLongitude,
+      'checkInAccuracyMetres': checkInAccuracyMetres,
+      'checkInDistanceMetres': checkInDistanceMetres,
+      'checkInLocationMocked': checkInLocationMocked,
       'checkOutLatitude': checkOutLatitude,
       'checkOutLongitude': checkOutLongitude,
       'status': status.firestoreValue,

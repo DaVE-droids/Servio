@@ -19,6 +19,7 @@ import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../data/models/attendance_model.dart';
 import '../controllers/attendance_state.dart';
+import '../widgets/attendance_location_chip.dart';
 import '../providers/attendance_providers.dart';
 import '../widgets/attendance_calendar.dart';
 
@@ -203,6 +204,16 @@ class _TodayCard extends ConsumerWidget {
               color: AppColors.inkDeep.withValues(alpha: 0.75),
             ),
           ),
+          // Shown to the student too, not just the lecturer: they should
+          // know what was recorded about them and have the chance to fix a
+          // phone setting rather than be quietly flagged.
+          if (today != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AttendanceLocationChip(record: today),
+            ),
+          ],
           if (today == null || today.checkOutTime == null) ...[
             const SizedBox(height: AppSpacing.md),
             AppButton(
