@@ -93,13 +93,18 @@ already have that number will never be offered the new one.
 
 A single Firestore document, `app_config/android`:
 
-| Field | Example | What it's for |
-|---|---|---|
-| `latestBuildNumber` | `4` | Compared against the running app's build number |
-| `latestVersionName` | `"1.1.0"` | Shown to the user |
-| `downloadUrl` | `"https://github.com/.../app-release.apk"` | Where the Update button sends them |
-| `releaseNotes` | `"Attendance now records…"` | Shown in the dialog so the update is worth tapping |
-| `minimumBuildNumber` | `2` | Below this, the update is required rather than optional (see §7) |
+| Field | Console type | Example | What it's for |
+|---|---|---|---|
+| `latestBuildNumber` | `int64` | `4` | Compared against the running app's build number |
+| `latestVersionName` | `string` | `"1.1.0"` | Shown to the user |
+| `downloadUrl` | `string` | `"https://github.com/.../app-release.apk"` | Where the Update button sends them |
+| `releaseNotes` | `string` | `"Attendance now records…"` | Shown in the dialog so the update is worth tapping |
+| `minimumBuildNumber` | `int64` | `2` | Below this, the update is required rather than optional (see §7) |
+
+The Firestore console calls a whole number **`int64`** — there is no type
+called "number" in its dropdown. The parser accepts `int64`, `double` or
+even a `string` of digits, so a wrong pick here cannot break the updater,
+but `int64` is the honest one.
 
 Firestore rather than a file on the website for three reasons: you are
 already using it, it is readable with one line of code the app already has
@@ -332,11 +337,11 @@ curl -sIL \
   | grep -i "^HTTP/\|^content-length"
 
 # 6. In the Firebase console, edit app_config/android:
-#      latestBuildNumber: 2          (number)
+#      latestBuildNumber: 2          (int64)
 #      latestVersionName: "1.0.1"    (string)
 #      downloadUrl: <the link from step 5>
 #      releaseNotes: "What changed"
-#      minimumBuildNumber: 1         (number — see §7)
+#      minimumBuildNumber: 1         (int64 — see §7)
 ```
 
 Everyone who opens the app after step 6 is told.
