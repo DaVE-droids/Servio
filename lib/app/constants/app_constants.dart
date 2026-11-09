@@ -41,4 +41,16 @@ abstract final class AppConstants {
   /// Readings vaguer than this are treated as no reading at all, rather
   /// than being used to put a student inside or outside the fence.
   static const attendanceMaxLocationAccuracyMetres = 200.0;
+
+  /// Whether the app checks for a newer build and offers to install it.
+  ///
+  /// On for the APKs handed to testers directly: without this they have no
+  /// way of knowing an update exists. **Set it to false for any build
+  /// uploaded to Google Play** — Play forbids an app it distributes from
+  /// updating itself by any other route, and Play does the job itself
+  /// anyway. See docs/APP_UPDATES.md §9.
+  static const selfUpdateEnabled = true;
+
+  /// The Firestore document holding the published release details.
+  static const appUpdateConfigPath = 'app_config/android';
 }

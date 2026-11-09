@@ -7,6 +7,7 @@ import '../../core/widgets/app_avatar.dart';
 import '../../core/widgets/brand_mark.dart';
 import '../../features/authentication/presentation/providers/authentication_providers.dart';
 import '../../features/notifications/presentation/widgets/notifications_bell_button.dart';
+import '../../features/updates/presentation/widgets/update_prompt.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../constants/app_routes.dart';
 import '../router/app_navigation.dart';
@@ -200,6 +201,10 @@ class AppShell extends ConsumerWidget {
       }
     });
 
+    // Offers a newer build once per launch; does nothing on iOS, on the
+    // web, or in a Play build. See docs/APP_UPDATES.md.
+    final content = UpdatePrompt(child: child);
+
     final isWide = MediaQuery.sizeOf(context).width >= wideBreakpoint;
     if (isWide) {
       return Scaffold(
@@ -225,7 +230,7 @@ class AppShell extends ConsumerWidget {
                       alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1240),
-                        child: child,
+                        child: content,
                       ),
                     ),
                   ),
@@ -258,7 +263,7 @@ class AppShell extends ConsumerWidget {
           const SizedBox(width: AppSpacing.xs),
         ],
       ),
-      body: child,
+      body: content,
       bottomNavigationBar: showBack || destinations.isEmpty
           ? null
           : DecoratedBox(

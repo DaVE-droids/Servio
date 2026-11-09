@@ -14,6 +14,7 @@ asks "why does it want that?".
 | Android | `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` | Only when a student taps "Check in" on the attendance screen | Recording how far the check-in was from the company address |
 | iOS | Location in use (`NSLocationWhenInUseUsageDescription`) | Only when a student taps "Check in" | Same |
 | Web | Geolocation (browser prompt) | Only when a student taps "Check in" | Same |
+| Android | `REQUEST_INSTALL_PACKAGES` | Never prompted; Android shows its own install screen when the user taps Update | Installing an update the app downloaded (see `docs/APP_UPDATES.md`) |
 | iOS | Camera (`NSCameraUsageDescription`) | Only when someone taps "Take a photo" for their profile picture | Profile photo |
 | iOS | Photo library (`NSPhotoLibraryUsageDescription`) | Only when someone chooses an existing photo | Profile photo |
 | Web | Nothing else | — | The file picker needs no permission |
@@ -39,6 +40,12 @@ Blaze plan, so in practice the camera and photo prompts don't appear yet.
 - **Android storage / photos (`READ_MEDIA_IMAGES`)**: choosing a photo uses
   Android's system photo picker, which returns only the file the user
   picked.
+- **Storage and media permissions for the updater.** The `open_filex`
+  package would have merged `READ_EXTERNAL_STORAGE` and three
+  `READ_MEDIA_*` permissions into the manifest for features Servio never
+  uses. Writing the install handoff directly (thirty lines of Kotlin in
+  `MainActivity.kt`) avoids all four: the update is written to the app's own
+  cache directory, which needs no permission at all.
 - **Background location** (`ACCESS_BACKGROUND_LOCATION`): Servio never
   tracks where anyone is between check-ins. Google Play and Apple both
   require a separate, heavily scrutinised justification for it, and
@@ -54,6 +61,7 @@ Blaze plan, so in practice the camera and photo prompts don't appear yet.
 | `android/app/src/main/AndroidManifest.xml` | `INTERNET`, the `<queries>` block (which other apps Servio may hand off to: web links, maps, the camera app), `allowBackup="false"` |
 | `ios/Runner/Info.plist` | The two usage descriptions (the exact sentences users see), plus `ITSAppUsesNonExemptEncryption` |
 | `ios/Runner/PrivacyInfo.xcprivacy` | Apple's privacy manifest: what Servio collects and that it doesn't track |
+| `android/app/src/main/res/xml/servio_file_paths.xml` | Limits the app's `FileProvider` to the cache directory, so the only file it can ever share is a downloaded update |
 | `firebase.json` → `Permissions-Policy` header | Turns camera, microphone, payment, and USB **off** for the website, and allows geolocation for Servio's own pages only (`geolocation=(self)`) |
 
 The iOS sentences are what appear in the system prompt, word for word.

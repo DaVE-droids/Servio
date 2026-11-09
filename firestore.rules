@@ -805,6 +805,15 @@ service cloud.firestore {
     allow delete: if false;
   }
 
+  // The published-release note the app reads at start-up to find out
+  // whether a newer build exists (docs/APP_UPDATES.md). Readable by anyone
+  // signed in, writable by nobody: it is edited by hand in the Firebase
+  // console, never by a client.
+  match /app_config/{document} {
+    allow get: if isSignedIn();
+    allow list, write: if false;
+  }
+
   match /audit_events/{eventId} {
     // Per the DDS: only coordinators see all events; a lecturer sees only
     // events they themselves performed (their own submitted reports,

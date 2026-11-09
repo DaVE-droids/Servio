@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The only directory Servio ever shares a file from: its own cache,
+     where a downloaded update is written. Nothing else is exposed. -->
+<paths>
+    <cache-path name="updates" path="." />
+</paths>
