@@ -6,6 +6,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_tone.dart';
 import '../../../../core/enums/attendance_status.dart';
 import '../../../../core/enums/internship_status.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_card.dart';
@@ -18,6 +19,7 @@ import '../../../../core/widgets/responsive_columns.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../data/models/attendance_model.dart';
+import '../../domain/location_notice.dart';
 import '../controllers/attendance_state.dart';
 import '../widgets/attendance_location_chip.dart';
 import '../providers/attendance_providers.dart';
@@ -214,10 +216,19 @@ class _TodayCard extends ConsumerWidget {
               child: AttendanceLocationChip(record: today),
             ),
           ],
+          // A check-in held back because the phone's location couldn't be
+          // read. Says what is wrong and offers the way out, rather than
+          // saving an unconfirmed record without a word.
+          if (today == null && state.locationNotice != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _LocationNotice(reason: state.locationNotice!),
+          ],
           if (today == null || today.checkOutTime == null) ...[
             const SizedBox(height: AppSpacing.md),
             AppButton(
-              label: today == null ? 'Check in' : 'Check out',
+              label: today == null
+                  ? (state.locationNotice == null ? 'Check in' : 'Try again')
+                  : 'Check out',
               icon: today == null ? Icons.login_rounded : Icons.logout_rounded,
               isLoading: state.isProcessing,
               onPressed: today == null
@@ -225,9 +236,93 @@ class _TodayCard extends ConsumerWidget {
                   : controller.checkOut,
             ),
           ],
+          // Never a dead end: the student can always go ahead. It is their
+          // attendance, and a phone's GPS is not always fixable on the spot.
+          if (today == null && state.locationNotice != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            AppButton(
+              label: 'Check in without confirming',
+              variant: AppButtonVariant.text,
+              onPressed: state.isProcessing
+                  ? null
+                  : () => controller.checkIn(withoutLocation: true),
+            ),
+          ],
         ],
       ),
     );
+  }
+}
+
+/// Explains why a location reading is missing, and offers the one setting
+/// that would fix it.
+class _LocationNotice extends ConsumerWidget {
+  const _LocationNotice({required this.reason});
+
+  final LocationUnavailable reason;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notice = LocationNotice.of(reason);
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppTone.warning.background,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.location_off_outlined,
+            size: 20,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notice.title,
+                  style: textTheme.titleSmall?.copyWith(
+                    color: AppColors.inkDeep,
+                  ),
+                ),
+                Text(
+                  notice.message,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.inkDeep,
+                  ),
+                ),
+                if (notice.actionLabel != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  AppButton(
+                    label: notice.actionLabel!,
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () => _openSettings(ref),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openSettings(WidgetRef ref) async {
+    final location = ref.read(locationServiceProvider);
+    switch (LocationNotice.of(reason).action) {
+      case LocationNoticeAction.openLocationSettings:
+        await location.openLocationSettings();
+      case LocationNoticeAction.openAppSettings:
+        await location.openAppSettings();
+      case LocationNoticeAction.none:
+        break;
+    }
   }
 }
 

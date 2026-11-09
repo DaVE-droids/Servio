@@ -30,14 +30,15 @@ class AttendanceRepository {
         day: day,
       );
 
-      // Where the phone says it is, and how far that is from the company
-      // address. A failed reading is not a failed check-in: the record is
-      // simply saved without one and shows as unconfirmed.
-      final reading = await _location.current();
-      final distanceMetres = reading.hasPosition
+      // How far the phone's reading is from the company address. A request
+      // with no reading is not a failed check-in: the record is simply
+      // saved without one and shows as unconfirmed.
+      final hasReading =
+          request.deviceLatitude != null && request.deviceLongitude != null;
+      final distanceMetres = hasReading
           ? _location.distanceBetween(
-              fromLatitude: reading.latitude!,
-              fromLongitude: reading.longitude!,
+              fromLatitude: request.deviceLatitude!,
+              fromLongitude: request.deviceLongitude!,
               toLatitude: request.companyLatitude,
               toLongitude: request.companyLongitude,
             )
@@ -55,11 +56,11 @@ class AttendanceRepository {
         state: request.state,
         date: day,
         checkInTime: now,
-        checkInLatitude: reading.latitude,
-        checkInLongitude: reading.longitude,
-        checkInAccuracyMetres: reading.accuracyMetres,
+        checkInLatitude: request.deviceLatitude,
+        checkInLongitude: request.deviceLongitude,
+        checkInAccuracyMetres: request.deviceAccuracyMetres,
         checkInDistanceMetres: distanceMetres,
-        checkInLocationMocked: reading.isMocked,
+        checkInLocationMocked: request.deviceLocationMocked,
         status: AttendanceStatus.checkedIn,
         createdAt: now,
         updatedAt: now,

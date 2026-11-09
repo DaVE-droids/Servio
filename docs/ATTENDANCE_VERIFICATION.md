@@ -45,7 +45,9 @@ the feature would do more harm than the problem it solves.
 When a student taps **Check in**:
 
 1. **Servio asks the phone where it is.** First time, the OS shows the
-   permission prompt. The student can refuse.
+   permission prompt. The student can refuse. Permission is asked for
+   *before* Servio checks whether location is switched on system-wide —
+   see the note at the end of this section, which was a real bug.
 2. **The phone answers with a position and a margin of error** — "I am at
    this point, give or take 30 metres." That margin matters as much as the
    position, and most apps throw it away.
@@ -59,8 +61,30 @@ When a student taps **Check in**:
    and their lecturer.
 
 If step 1 or 2 fails — location switched off, permission refused, phone
-can't get a fix, taking too long — **the check-in still succeeds**. It is
-saved with no location and reads as "not confirmed".
+can't get a fix, taking too long — **the student is told before anything is
+saved**, with the one setting that would fix it and a "Check in without
+confirming" button underneath. Going ahead still works: the record is saved
+with no location and reads as "not confirmed". Nobody is ever blocked from
+checking in by their phone.
+
+The order of those two things matters more than it looks:
+
+- **The position is read in the controller, not the repository.** Nothing is
+  written until a reading has been attempted. There is one attendance record
+  per day, so a record saved without a location can never be retried — the
+  student would be stuck with "not confirmed" until tomorrow. Asking first
+  makes "Try again" mean something.
+- **Permission is requested before the system location setting is checked.**
+  The other way round reads more logically and was the original bug: a phone
+  with location switched off returned early at the service check, so the
+  permission prompt was never reached. From the student's side the feature
+  did nothing whatsoever — no prompt, no message, and a check-in quietly
+  recorded as unconfirmed.
+- **Silence was also a hole in the check.** A record saved with location off
+  is indistinguishable from an honest record made before this feature
+  existed, so switching location off was a discoverable way around the
+  geofence that left no trace. It is now a deliberate choice the student has
+  to make on screen, not an accident of a phone setting.
 
 ## 4. The three verdicts
 
@@ -127,11 +151,14 @@ Two benefits:
 | File | What it does |
 |---|---|
 | `lib/features/attendance/domain/location_check.dart` | **The decision.** Pure logic — no GPS, no Firebase. Takes distance, margin of error, mocked flag; returns a verdict and a plain-English explanation. This is the file to read first. |
-| `lib/core/services/location_service.dart` | Asks the phone where it is. Never throws; returns an empty reading on any failure. |
+| `lib/core/services/location_service.dart` | Asks the phone where it is. Never throws; returns an empty reading carrying *why* it is empty (`locationOff`, `permissionDenied`, `permissionBlocked`, `noFix`). Also opens the two settings pages that can fix those. |
+| `lib/features/attendance/domain/location_notice.dart` | The words shown for each of those reasons, and which settings page each one offers. Pure mapping, no widgets — change the wording here. |
 | `lib/features/attendance/data/models/attendance_model.dart` | The stored fields: `checkInLatitude`, `checkInLongitude`, `checkInAccuracyMetres`, `checkInDistanceMetres`, `checkInLocationMocked`. |
-| `lib/features/attendance/data/repositories/attendance_repository.dart` | Takes the reading and measures the distance while building the record. |
+| `lib/features/attendance/presentation/controllers/attendance_controller.dart` | Reads the position before writing, and holds the check-in back with a notice if there isn't one. `checkIn(withoutLocation: true)` is the student overriding that. |
+| `lib/features/attendance/data/repositories/attendance_repository.dart` | Measures the distance from the reading it is handed, while building the record. |
 | `lib/features/attendance/presentation/widgets/attendance_location_chip.dart` | The chip. Tap it for the explanation. |
 | `test/location_check_test.dart` | 7 tests covering every verdict and both thresholds. |
+| `test/location_notice_test.dart` | 8 tests: every reason has wording, and offers the settings page that actually helps. |
 
 The decision logic is deliberately separated from everything else so it can
 be tested without a phone, a GPS signal, or a Firebase connection. If you
@@ -219,6 +246,11 @@ not a bug.
 - **No notification.** Nobody is told when a check-in comes in away from
   the workplace; a lecturer has to look. This fits naturally into the
   notification work in the roadmap.
-- **Untested on a real device.** The logic has unit tests and the app
-  builds and analyzes clean, but no physical phone has been through the
-  flow yet.
+- **`LocationService` has no tests.** It talks straight to Geolocator, so
+  only a physical phone proves it. Everything downstream of it — the
+  verdict, the wording, the notice — is unit-tested without a phone.
+- **Partly tested on a real device.** A check-in on an Android phone has
+  been through the "not confirmed" path (2026-11-09, which is how the
+  silent-failure bug above was found). Still unwalked on hardware: the
+  permission prompt itself, an at-the-workplace check-in, an away-from-the-
+  workplace check-in, and an approximate-location grant.

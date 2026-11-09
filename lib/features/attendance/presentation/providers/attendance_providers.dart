@@ -20,11 +20,16 @@ final attendanceServiceProvider = Provider<AttendanceService>((ref) {
   return AttendanceService(ref.watch(firebaseFirestoreProvider));
 });
 
+/// Provides the device location reader.
+final locationServiceProvider = Provider<LocationService>((ref) {
+  return const LocationService();
+});
+
 /// Provides the attendance repository.
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   return AttendanceRepository(
     ref.watch(attendanceServiceProvider),
-    const LocationService(),
+    ref.watch(locationServiceProvider),
   );
 });
 

@@ -14,6 +14,10 @@ class AttendanceCheckInRequest {
     required this.state,
     required this.companyLatitude,
     required this.companyLongitude,
+    this.deviceLatitude,
+    this.deviceLongitude,
+    this.deviceAccuracyMetres,
+    this.deviceLocationMocked = false,
   });
 
   /// Internship this attendance record belongs to.
@@ -46,4 +50,19 @@ class AttendanceCheckInRequest {
 
   /// Company longitude, from the internship.
   final double companyLongitude;
+
+  /// Where the phone said it was when the student tapped check in, or null
+  /// if no reading could be taken. Read by the controller rather than the
+  /// repository, so the student can be told why it is missing and given the
+  /// choice to fix it before anything is written.
+  final double? deviceLatitude;
+
+  /// Device longitude, or null alongside a null [deviceLatitude].
+  final double? deviceLongitude;
+
+  /// The reading's margin of error in metres, as reported by the platform.
+  final double? deviceAccuracyMetres;
+
+  /// Whether the platform said the reading came from a mock provider.
+  final bool deviceLocationMocked;
 }

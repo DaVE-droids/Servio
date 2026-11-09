@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../reports/presentation/providers/reports_providers.dart';
 import '../../../../core/enums/internship_status.dart';
 import '../../../../core/result/result.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../internship/data/models/internship_model.dart';
 import '../../../internship/presentation/providers/internship_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -43,7 +44,12 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
   }
 
   /// Checks the current student in for today.
-  Future<void> checkIn() async {
+  ///
+  /// Pass [withoutLocation] to go ahead when the phone's position could not
+  /// be read — the student's own decision, taken after being shown why it
+  /// failed. The record is then saved with nothing to confirm it, which is
+  /// what both they and their lecturer will see.
+  Future<void> checkIn({bool withoutLocation = false}) async {
     final previous = switch (state) {
       AsyncData(:final value) => value,
       _ => const AttendanceState(),
@@ -91,6 +97,24 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
       previous.copyWith(isProcessing: true, clearMessages: true),
     );
 
+    // Read the position before writing anything. Doing it here rather than
+    // inside the repository is the point: a student whose location is off
+    // gets told, and gets the chance to turn it on, instead of being
+    // quietly recorded as unconfirmed with no idea why.
+    final reading = withoutLocation
+        ? const LocationReading()
+        : await ref.read(locationServiceProvider).current();
+    if (!reading.hasPosition && !withoutLocation) {
+      state = AsyncData(
+        previous.copyWith(
+          isProcessing: false,
+          clearMessages: true,
+          locationNotice: reading.unavailable ?? LocationUnavailable.noFix,
+        ),
+      );
+      return;
+    }
+
     final result = await ref
         .read(checkInUseCaseProvider)
         .call(
@@ -108,6 +132,10 @@ class AttendanceController extends AsyncNotifier<AttendanceState> {
             state: internship.state,
             companyLatitude: internship.companyLatitude,
             companyLongitude: internship.companyLongitude,
+            deviceLatitude: reading.latitude,
+            deviceLongitude: reading.longitude,
+            deviceAccuracyMetres: reading.accuracyMetres,
+            deviceLocationMocked: reading.isMocked,
           ),
         );
 
