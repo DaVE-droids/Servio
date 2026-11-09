@@ -661,3 +661,165 @@ tests.
 
 **Deployed:** `firestore.rules` (the attendance location fields from
 2026-11-06) were deployed to the live project by the owner.
+
+**Changed (app code + backend/db):** Built the in-app updater designed in
+`docs/APP_UPDATES.md`. Sideloaded Android builds now check for a newer
+release at start-up, download it with a progress bar, and hand it to the
+system installer.
+- `lib/features/updates/` (new): the comparison (`update_decision.dart`),
+  the config document model, the service that reads/downloads/installs, the
+  providers, the dialog, and a prompt widget wired into `AppShell`.
+- `android/.../MainActivity.kt`: a ~30-line method channel that resolves a
+  content URI and fires `ACTION_VIEW` to install.
+- `AndroidManifest.xml`: `REQUEST_INSTALL_PACKAGES` and a `FileProvider`,
+  scoped by the new `res/xml/servio_file_paths.xml` to the cache directory.
+- `firestore.rules`: `app_config` is readable by any signed-in user and
+  writable by nobody — it is edited by hand in the console.
+- `AppConstants.selfUpdateEnabled` gates the whole feature.
+- Dependencies: `package_info_plus`, `path_provider`. The download uses the
+  `http` package already present; no HTTP client was added.
+
+**Why these specific choices:**
+- **`open_filex` was tried and removed.** Despite a recent publish date its
+  Android build pins AGP 8.1.0 and uses `compileSdkVersion`, `lintOptions`
+  and `minSdkVersion 16` — DSL that AGP 9 removed, while this project is on
+  AGP 9.0.1 / Gradle 9.1 — and it merges `READ_EXTERNAL_STORAGE` plus three
+  `READ_MEDIA_*` permissions into the manifest for features Servio never
+  uses. The surveyed alternatives (`apk_manager`,
+  `android_package_installer`, `flutter_app_installer`, and a fork of the
+  last) were pre-release, unmaintained, or also wanted storage permissions.
+  For the single call that installs software on a user's phone, thirty
+  owned lines beat that dependency.
+- **Build numbers are compared as integers, never version names as text.**
+  As text "1.10" sorts before "1.9", which would silently stop offering
+  updates after the tenth release.
+- **A download URL must be https**, or the release is ignored: the file is
+  about to be installed as software.
+- **The file is written as `.part` and renamed on completion**, so an
+  interrupted download can never be handed to the installer as if whole.
+- **Every failure is silent.** No document, offline, a field typed as a
+  string, a malformed URL: all resolve to "no update" and are logged.
+  Nobody should be blocked from checking in because an update check failed.
+- **`selfUpdateEnabled` must be false for any Play build** — Play forbids an
+  app it distributes from updating itself by another route.
+**Follow-up:** 14 new tests in `test/update_decision_test.dart`; suite is
+134 passing and the analyzer is clean. **Not verified on a device**, and the
+APK build could not be run here (Gradle could not reach the network from
+this environment, though `curl` to the same hosts succeeded). The
+`app_config/android` document does not exist yet; until it does the app
+checks, finds nothing, and carries on. See `APP_UPDATES.md` §14.
+
+**Changed (app code):** Every sign-out button now shows progress and
+refuses a second tap while the first is running — the profile screen, the
+account menu in the shell, and the email-verification, pending-approval, and
+splash screens. `AuthenticationController` already tracked `isLoading`; none
+of the five call sites read it.
+**Why:** Reported: tapping Sign out gave no feedback at all. The account
+menu needed a different treatment from the rest — a popup menu item cannot
+show its own spinner because the menu closes the instant it is tapped, so
+the avatar itself becomes the spinner and the menu stops opening until
+sign-out finishes.
+
+**Decision (no code change):** Sign-out stays available offline.
+**Why:** Reported as a bug — signing out worked with no connection, and "how
+does the backend know?" The answer is that it does not, and cannot:
+`FirebaseAuth.signOut()` is a purely local operation that discards the
+cached ID token and refresh token on the device. Firebase Auth is
+token-based rather than session-based, so there is no server-side session
+record to delete; an ID token is a self-contained JWT that simply expires
+(about an hour). Requiring a connection would make things **less** safe, not
+more: someone trying to sign out of a borrowed or about-to-be-lost phone
+while offline would be refused, leaving their credentials cached on that
+device. Refusing to sign out is a worse failure than signing out locally.
+**Follow-up:** The underlying instinct is sound and names a real gap —
+sign-out does not *revoke* anything. Anyone who had already extracted the
+refresh token from a device keeps it. Actual revocation needs the Admin
+SDK's `revokeRefreshTokens` plus rules comparing `auth_time`, so a Cloud
+Function, so Blaze; even then ID tokens stay valid for up to an hour unless
+the rules check `auth_time`. Recorded against the Blaze work rather than
+built now.
+
+**Fixed (app code):** A check-in on a phone with location switched off asked
+for nothing, said nothing, and silently saved an unconfirmable record.
+- `lib/core/services/location_service.dart` — permission is now requested
+  *before* `isLocationServiceEnabled()` is consulted. The old order looked
+  more logical and was the bug: a phone with location off returned early at
+  the service check and the permission prompt was never reached, so the
+  feature appeared to do nothing at all. A reading also now carries a
+  `LocationUnavailable` reason (`locationOff`, `permissionDenied`,
+  `permissionBlocked`, `noFix`), and the service exposes
+  `openLocationSettings()` / `openAppSettings()`.
+- `lib/features/attendance/domain/location_notice.dart` (new) — the wording
+  for each reason as one pure mapping, away from widgets, so it can be read
+  in one place and tested.
+- The position is now read in `AttendanceController.checkIn()` rather than
+  inside `AttendanceRepository.checkIn()`, and passed down on
+  `AttendanceCheckInRequest` (`deviceLatitude`, `deviceLongitude`,
+  `deviceAccuracyMetres`, `deviceLocationMocked`). That ordering is the
+  whole point: nothing is written until the reading has been attempted, so
+  a student can be told what is wrong and fix it *before* a record exists.
+  One attendance record per day means a retry would otherwise be impossible.
+- `AttendanceState` gained `locationNotice`; the student attendance screen
+  shows the explanation, the single settings button that would fix it, and
+  a "Check in without confirming" text button.
+- Added `locationServiceProvider` so the service is injectable rather than
+  constructed inline.
+- `test/location_notice_test.dart` (new, 8 tests) — every reason has copy,
+  the right reason offers the right settings page, and a reason with an
+  action always has a button label. Suite 134 → 142.
+
+**Why:** Reported from a real device: a check-in neither asked for location
+permission nor explained itself, and the record was saved as "Location not
+confirmed". Behaviour was as designed (flag, never block) but the silence
+was not: the student had no way to know anything was missing, and the
+geofence leaked — switching location off produced a record indistinguishable
+from an honest pre-feature one, which is a discoverable way around the
+check. Telling the student before the write closes that without blocking
+anyone, which stays within the earlier decision not to refuse an off-site
+check-in.
+
+**Follow-up:** `LocationService` itself is still untested — it talks
+straight to Geolocator, so only the device proves it. The three prompts
+(permission, then the location setting, then the fix itself) have not been
+walked through on hardware yet.
+
+**Decision (no code change):** The sign-out spinner is invisible, and that is
+the correct outcome.
+**Why:** Reported after the loading-state fix above: sign out still shows no
+spinner. The state is wired correctly — `_run()` in
+`AuthenticationController` sets `isLoading: true`, awaits, then clears it —
+but `FirebaseAuth.signOut()` is a local operation that discards two cached
+tokens and resolves in about a millisecond, with no network round trip (see
+the offline sign-out decision above). Flutter draws a frame roughly every 16
+ms, so `isLoading` is already back to false before any frame could show the
+spinner, and the router has replaced the screen with sign-in. The only way
+to make the spinner appear would be to add an artificial delay, which means
+making the app slower so that it looks busier. The screen change *is* the
+feedback.
+**Follow-up:** The guard still earns its place: the same five call sites
+cover `reloadCurrentUser`, `sendVerificationEmail` and the login paths,
+which do make network calls and do need it.
+
+**Changed:** Bumped `version: 1.0.0+1` → `1.0.1+2` in `pubspec.yaml`, and
+rewrote APP_UPDATES.md §11 as a concrete GitHub release routine (what a
+release is, the predictable asset URL, the 302 redirect, `gh release
+create`, the unauthenticated `curl` check, and the five Firestore fields).
+**Why:** The in-app updater has never run. Build 2 is the first real test
+of it, and it carries the location-permission fix, so the fix and the
+mechanism get proven in one go. The build number had to rise or Android
+would refuse to install over build 1.
+**Why it can be tested at all:** unpacking the build-1 APK already on the
+phone confirmed it contains both the `servio/installer` Kotlin channel and
+the Dart updater (`app_config/android`, `servio-update.apk` found in
+`classes.dex` and `libapp.so`). So the installed app can receive an update
+without a sideload first.
+**Also corrected in §6:** the claim that the repository "can stay private"
+was true of a human clicking the link but wrong for Servio — a private
+repository's release assets require an `Authorization` header and the
+downloader sends none, so it would fail. `DaVE-droids/Servio` is public, so
+this holds today; the doc now states it as a hard requirement of the
+feature rather than a preference.
+**Follow-up:** The tag must be created from the commit that produced the
+APK, so the pending work has to be committed before the release is cut —
+otherwise the tag points at code the APK does not contain. Nothing
+committed yet.

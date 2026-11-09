@@ -185,6 +185,24 @@ practice regardless.
 trigger, the recipient lookup, a branded HTML template, the event filter
 above, and the opt-out flag.
 
+### Also when Blaze lands — two things sign-out cannot do today
+
+Both need a Cloud Function, so neither is built:
+
+- **Revoking a session.** `FirebaseAuth.signOut()` only clears the tokens
+  cached on that device; it tells the server nothing, because Firebase Auth
+  has no server-side session to end. A refresh token already copied off a
+  device stays usable. Real revocation is the Admin SDK's
+  `revokeRefreshTokens`, plus rules comparing `auth_time` — without that
+  rules check, an ID token issued before the revocation still works for up
+  to an hour.
+- **Detaching the FCM token on sign-out.** Once push notifications exist, a
+  device that signs out keeps receiving the previous user's notifications
+  until its token is deleted server-side. This one genuinely does need the
+  network at sign-out, and is the strongest argument for revisiting the
+  "sign-out works offline" decision — but only for the push token, never
+  for sign-out itself.
+
 ### Phase 11 — Public visibility push (not blocked on money)
 
 The goal is not users. Servio is pitched to an institution, not downloaded
