@@ -59,6 +59,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profileValue = ref.watch(profileControllerProvider);
+    final isSigningOut = ref.watch(authenticationControllerProvider).isLoading;
 
     ref.listen(profileControllerProvider, (previous, next) {
       final state = next.value;
@@ -177,9 +178,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           label: 'Sign out',
                           icon: Icons.logout_rounded,
                           variant: AppButtonVariant.secondary,
-                          onPressed: () => ref
-                              .read(authenticationControllerProvider.notifier)
-                              .logout(),
+                          isLoading: isSigningOut,
+                          onPressed: isSigningOut
+                              ? null
+                              : () => ref
+                                    .read(
+                                      authenticationControllerProvider
+                                          .notifier,
+                                    )
+                                    .logout(),
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         TextButton.icon(

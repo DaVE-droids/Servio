@@ -62,7 +62,7 @@ class EmailVerificationScreen extends ConsumerWidget {
         AppButton(
           label: 'Sign out',
           variant: AppButtonVariant.text,
-          onPressed: controller.logout,
+          onPressed: authState.isLoading ? null : controller.logout,
         ),
       ],
     );

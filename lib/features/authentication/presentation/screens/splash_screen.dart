@@ -74,6 +74,9 @@ class SplashScreen extends ConsumerWidget {
                   AppButton(
                     label: 'Sign out',
                     variant: AppButtonVariant.text,
+                    isLoading: ref
+                        .watch(authenticationControllerProvider)
+                        .isLoading,
                     onPressed: () => ref
                         .read(authenticationControllerProvider.notifier)
                         .logout(),

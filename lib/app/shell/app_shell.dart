@@ -495,6 +495,27 @@ class _AccountButton extends ConsumerWidget {
       null => '',
     };
     final textTheme = Theme.of(context).textTheme;
+    final isSigningOut = ref.watch(authenticationControllerProvider).isLoading;
+
+    // A popup menu item cannot show its own progress: the menu closes the
+    // moment it is tapped. So the avatar becomes the spinner, and the menu
+    // stops opening until sign-out finishes.
+    if (isSigningOut) {
+      return const Padding(
+        padding: EdgeInsets.all(6),
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Center(
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
 
     return PopupMenuButton<_AccountAction>(
       tooltip: 'Account',
